@@ -6,8 +6,19 @@ const crypto = require("crypto");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const PLAN_AMOUNT = "2000.00";
 const PLAN_CURRENCY = "BDT";
+const DEFAULT_BKASH_RECEIVER_NUMBER = "01746616678";
+const DEFAULT_AMR_RECEIVER_NUMBER = "01746616678";
+const PAYMENT_METHODS = Object.freeze({
+    bkash: {
+        label: "bKash",
+        receiverNumber: DEFAULT_BKASH_RECEIVER_NUMBER
+    },
+    amr: {
+        label: "AMR",
+        receiverNumber: DEFAULT_AMR_RECEIVER_NUMBER
+    }
+});
 const SUBSCRIPTION_PLANS = Object.freeze({
     basic: { name: "Basic", amount: "500.00" },
     gold: { name: "Gold", amount: "1000.00" },
@@ -89,6 +100,25 @@ function publicUser(user) {
 
 function findUserById(id) {
     return users.find(user => user.id === Number(id));
+}
+
+function normalizePaymentMethod(value = "bkash") {
+    const method = String(value ?? "").trim().toLowerCase();
+
+    if (method === "amr" || method === "amr-pay" || method === "amrpay") {
+        return "amr";
+    }
+
+    return "bkash";
+}
+
+function getPaymentMethodConfig(method = "bkash") {
+    const normalized = normalizePaymentMethod(method);
+    return PAYMENT_METHODS[normalized] || PAYMENT_METHODS.bkash;
+}
+
+function getPaymentReceiverNumber(method = "bkash") {
+    return getPaymentMethodConfig(method).receiverNumber;
 }
 
 // --------------------------------------------------
@@ -332,14 +362,16 @@ app.post("/api/renew", requireAuth, (req, res) => {
 });
 
 // --------------------------------------------------
-// bKash Sandbox configuration
-// Set these variables on the server before testing:
+// bKash API configuration. The sandbox URL is used unless overridden.
+// Set these variables on the server:
 // BKASH_USERNAME, BKASH_PASSWORD, BKASH_APP_KEY,
-// BKASH_APP_SECRET, APP_BASE_URL
+// BKASH_APP_SECRET, APP_BASE_URL, BKASH_BASE_URL (optional)
 // --------------------------------------------------
 
-const BKASH_BASE_URL =
-    "https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout";
+const BKASH_BASE_URL = (
+    process.env.BKASH_BASE_URL ||
+    "https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout"
+).replace(/\/+$/, "");
 
 let cachedToken = null;
 let tokenExpiresAt = 0;
@@ -476,6 +508,32 @@ app.post("/api/payments/bkash/create", requireAuth, async (req, res) => {
         });
     }
 
+    const planId =
+        typeof req.body?.planId === "string"
+            ? req.body.planId.toLowerCase()
+            : "";
+    const plan = SUBSCRIPTION_PLANS[planId];
+
+    if (!plan) {
+        return res.status(400).json({
+            success: false,
+            message: "Choose a valid subscription plan."
+        });
+    }
+
+    const hasPendingRequest = Array.from(manualPaymentRequests.values()).some(
+        paymentRequest =>
+            paymentRequest.userId === req.user.id &&
+            paymentRequest.status === "PENDING"
+    );
+
+    if (hasPendingRequest) {
+        return res.status(409).json({
+            success: false,
+            message: "You already have a payment waiting for admin review."
+        });
+    }
+
     try {
         const { token, config } = await getBkashToken();
 
@@ -492,7 +550,7 @@ app.post("/api/payments/bkash/create", requireAuth, async (req, res) => {
                 mode: "0011",
                 payerReference: String(req.user.id),
                 callbackURL,
-                amount: PLAN_AMOUNT,
+                amount: plan.amount,
                 currency: PLAN_CURRENCY,
                 intent: "sale",
                 merchantInvoiceNumber: invoiceNumber
@@ -507,7 +565,9 @@ app.post("/api/payments/bkash/create", requireAuth, async (req, res) => {
             orderId,
             paymentID: data.paymentID,
             userId: req.user.id,
-            amount: PLAN_AMOUNT,
+            planId,
+            planName: plan.name,
+            amount: plan.amount,
             currency: PLAN_CURRENCY,
             status: "PENDING",
             transactionId: null,
@@ -518,7 +578,7 @@ app.post("/api/payments/bkash/create", requireAuth, async (req, res) => {
             success: true,
             paymentID: data.paymentID,
             checkoutURL: data.bkashURL,
-            amount: PLAN_AMOUNT,
+            amount: plan.amount,
             currency: PLAN_CURRENCY
         });
     } catch (error) {
@@ -556,6 +616,10 @@ app.get("/api/payments/bkash/callback", async (req, res) => {
         return res.redirect("/dashboard.html?payment=success");
     }
 
+    if (order.paymentRequestId) {
+        return res.redirect("/dashboard.html?payment=pending");
+    }
+
     if (callbackStatus !== "success") {
         order.status = "FAILED";
         return res.redirect("/dashboard.html?payment=failed");
@@ -586,7 +650,6 @@ app.get("/api/payments/bkash/callback", async (req, res) => {
             return res.redirect("/dashboard.html?payment=unverified");
         }
 
-        // Update the subscription only after server-side verification.
         const user = findUserById(order.userId);
 
         if (!user) {
@@ -594,26 +657,41 @@ app.get("/api/payments/bkash/callback", async (req, res) => {
             return res.redirect("/dashboard.html?payment=failed");
         }
 
-        const now = new Date();
-        const currentEnd = user.subscriptionEnd === "N/A"
-            ? null
-            : new Date(`${user.subscriptionEnd}T00:00:00Z`);
+        const transactionId = String(result.trxID || paymentID).trim().toUpperCase();
+        const duplicateTransaction = Array.from(manualPaymentRequests.values()).some(
+            paymentRequest => paymentRequest.transactionId === transactionId
+        );
 
-        const startDate =
-            currentEnd && !Number.isNaN(currentEnd.getTime()) &&
-            currentEnd > now
-                ? currentEnd
-                : now;
+        if (duplicateTransaction) {
+            order.status = "FAILED";
+            return res.redirect("/dashboard.html?payment=duplicate");
+        }
 
-        startDate.setUTCFullYear(startDate.getUTCFullYear() + 1);
+        const paymentRequest = {
+            id: crypto.randomUUID(),
+            userId: order.userId,
+            planId: order.planId,
+            planName: order.planName,
+            paymentMethod: "ONLINE",
+            payerNumber: "Online bKash checkout",
+            receiverNumber: DEFAULT_BKASH_RECEIVER_NUMBER,
+            transactionId,
+            paymentID,
+            amount: order.amount,
+            currency: order.currency,
+            status: "PENDING",
+            createdAt: new Date().toISOString(),
+            decidedAt: null,
+            decidedBy: null
+        };
 
-        user.subscriptionEnd = startDate.toISOString().slice(0, 10);
+        manualPaymentRequests.set(paymentRequest.id, paymentRequest);
+        order.paymentRequestId = paymentRequest.id;
+        order.transactionId = transactionId;
+        order.status = "PENDING_REVIEW";
+        order.verifiedAt = new Date().toISOString();
 
-        order.status = "COMPLETED";
-        order.transactionId = result.trxID || null;
-        order.completedAt = new Date().toISOString();
-
-        return res.redirect("/dashboard.html?payment=success");
+        return res.redirect("/dashboard.html?payment=pending");
     } catch (error) {
         console.error("bKash callback verification error:", error.message);
         order.status = "VERIFY_FAILED";
@@ -648,6 +726,7 @@ app.get("/api/payments/mine", requireAuth, (req, res) => {
             amount: paymentRequest.amount,
             currency: paymentRequest.currency,
             status: paymentRequest.status,
+            paymentMethod: paymentRequest.paymentMethod || "MANUAL",
             createdAt: paymentRequest.createdAt,
             decidedAt: paymentRequest.decidedAt
         }));
@@ -655,7 +734,7 @@ app.get("/api/payments/mine", requireAuth, (req, res) => {
     res.json({ success: true, requests });
 });
 
-app.get("/api/payments/bkash/instructions", requireAuth, (req, res) => {
+function respondWithPaymentInstructions(req, res, methodOverride = "bkash") {
     if (req.user.role !== "user") {
         return res.status(403).json({
             success: false,
@@ -663,12 +742,16 @@ app.get("/api/payments/bkash/instructions", requireAuth, (req, res) => {
         });
     }
 
-    const receiverNumber = process.env.BKASH_RECEIVER_NUMBER?.trim();
+    const method = normalizePaymentMethod(
+        req.query?.method || req.query?.paymentMethod || methodOverride
+    );
+    const config = getPaymentMethodConfig(method);
+    const receiverNumber = config.receiverNumber;
 
     if (!receiverNumber || !/^01[3-9]\d{8}$/.test(receiverNumber)) {
         return res.status(503).json({
             success: false,
-            message: "The bKash receiving number is not configured. Contact the administrator."
+            message: `The ${config.label} receiving number is not configured. Contact the administrator.`
         });
     }
 
@@ -685,17 +768,23 @@ app.get("/api/payments/bkash/instructions", requireAuth, (req, res) => {
         });
     }
 
-    res.json({
+    return res.json({
         success: true,
+        paymentMethod: method,
+        paymentMethodLabel: config.label,
         receiverNumber,
         amount: plan.amount,
         currency: PLAN_CURRENCY,
         planId,
         planName: plan.name
     });
-});
+}
 
-app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
+app.get("/api/payments/instructions", requireAuth, respondWithPaymentInstructions);
+app.get("/api/payments/bkash/instructions", requireAuth, (req, res) => respondWithPaymentInstructions(req, res, "bkash"));
+app.get("/api/payments/amr/instructions", requireAuth, (req, res) => respondWithPaymentInstructions(req, res, "amr"));
+
+function submitManualPaymentRequest(req, res, methodOverride = "bkash") {
     if (req.user.role !== "user") {
         return res.status(403).json({
             success: false,
@@ -703,7 +792,11 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
         });
     }
 
-    const receiverNumber = process.env.BKASH_RECEIVER_NUMBER?.trim();
+    const method = normalizePaymentMethod(
+        req.body?.paymentMethod || methodOverride
+    );
+    const config = getPaymentMethodConfig(method);
+    const receiverNumber = getPaymentReceiverNumber(method);
     const planId =
         typeof req.body?.planId === "string"
             ? req.body.planId.toLowerCase()
@@ -721,7 +814,7 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
     if (!receiverNumber || !/^01[3-9]\d{8}$/.test(receiverNumber)) {
         return res.status(503).json({
             success: false,
-            message: "The bKash receiving number is not configured. Contact the administrator."
+            message: `The ${config.label} receiving number is not configured. Contact the administrator.`
         });
     }
 
@@ -735,14 +828,14 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
     if (!/^01[3-9]\d{8}$/.test(payerNumber)) {
         return res.status(400).json({
             success: false,
-            message: "Enter a valid 11-digit Bangladeshi bKash number."
+            message: `Enter a valid 11-digit Bangladeshi ${config.label} number.`
         });
     }
 
     if (!/^[A-Z0-9]{6,20}$/.test(transactionId)) {
         return res.status(400).json({
             success: false,
-            message: "Enter a valid bKash transaction ID (6-20 letters or numbers)."
+            message: `Enter a valid ${config.label} transaction ID (6-20 letters or numbers).`
         });
     }
 
@@ -775,6 +868,7 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
         userId: req.user.id,
         planId,
         planName: plan.name,
+        paymentMethod: method,
         payerNumber,
         receiverNumber,
         transactionId,
@@ -788,7 +882,7 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
 
     manualPaymentRequests.set(paymentRequest.id, paymentRequest);
 
-    res.status(201).json({
+    return res.status(201).json({
         success: true,
         message: "Payment request submitted. Your subscription will activate after admin approval.",
         request: {
@@ -797,7 +891,11 @@ app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => {
             createdAt: paymentRequest.createdAt
         }
     });
-});
+}
+
+app.post("/api/payments/manual-request", requireAuth, (req, res) => submitManualPaymentRequest(req, res, req.body?.paymentMethod));
+app.post("/api/payments/bkash/manual-request", requireAuth, (req, res) => submitManualPaymentRequest(req, res, "bkash"));
+app.post("/api/payments/amr/manual-request", requireAuth, (req, res) => submitManualPaymentRequest(req, res, "amr"));
 
 // --------------------------------------------------
 // Admin APIs
@@ -875,6 +973,7 @@ app.get("/api/admin/payment-requests", requireAdmin, (req, res) => {
                 username: user?.username || "Deleted user",
                 planName: paymentRequest.planName,
                 planId: paymentRequest.planId,
+                paymentMethod: paymentRequest.paymentMethod || "MANUAL",
                 payerNumber: paymentRequest.payerNumber,
                 receiverNumber: paymentRequest.receiverNumber,
                 transactionId: paymentRequest.transactionId,
@@ -929,6 +1028,14 @@ app.post("/api/admin/payment-requests/:id/approve", requireAdmin, (req, res) => 
     paymentRequest.status = "APPROVED";
     paymentRequest.decidedAt = new Date().toISOString();
     paymentRequest.decidedBy = req.user.username;
+
+    if (paymentRequest.paymentID) {
+        const payment = payments.get(paymentRequest.paymentID);
+        if (payment) {
+            payment.status = "COMPLETED";
+            payment.completedAt = paymentRequest.decidedAt;
+        }
+    }
 
     res.json({
         success: true,
@@ -1117,5 +1224,5 @@ app.listen(PORT, () => {
     console.log("User: user / password123");
     console.log("Admin: admin / admin123");
     console.log("Plan price: ৳2,000.00 BDT");
-    console.log(`Manual bKash payments: ${process.env.BKASH_RECEIVER_NUMBER ? "configured" : "not configured"}`);
+    console.log("Manual bKash payments: configured");
 });

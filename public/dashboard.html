@@ -7,6 +7,54 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+        body {
+            --plan-accent: #1769e0;
+            --plan-accent-hover: #0e56bf;
+            --plan-tint: #eff6ff;
+            --plan-ring: #bfdbfe;
+            --plan-hero: linear-gradient(110deg, rgba(15, 23, 42, .92), rgba(30, 58, 138, .78), rgba(15, 23, 42, .48));
+            --plan-hero-text: #dbeafe;
+        }
+
+        body[data-plan="gold"] {
+            --plan-accent: #b45309;
+            --plan-accent-hover: #92400e;
+            --plan-tint: #fffbeb;
+            --plan-ring: #fcd34d;
+            --plan-hero: linear-gradient(110deg, rgba(41, 37, 36, .94), rgba(146, 64, 14, .82), rgba(68, 64, 60, .52));
+            --plan-hero-text: #fef3c7;
+        }
+
+        body[data-plan="platinum"] {
+            --plan-accent: #475569;
+            --plan-accent-hover: #334155;
+            --plan-tint: #f1f5f9;
+            --plan-ring: #cbd5e1;
+            --plan-hero: linear-gradient(110deg, rgba(15, 23, 42, .94), rgba(71, 85, 105, .82), rgba(30, 41, 59, .52));
+            --plan-hero-text: #e2e8f0;
+        }
+
+        body[data-plan="diamond"] {
+            --plan-accent: #0f766e;
+            --plan-accent-hover: #115e59;
+            --plan-tint: #f0fdfa;
+            --plan-ring: #99f6e4;
+            --plan-hero: linear-gradient(110deg, rgba(15, 23, 42, .94), rgba(15, 118, 110, .82), rgba(20, 83, 75, .52));
+            --plan-hero-text: #ccfbf1;
+        }
+
+        .plan-accent { background-color: var(--plan-accent) !important; }
+        .plan-accent:hover { background-color: var(--plan-accent-hover) !important; }
+        .plan-accent-text { color: var(--plan-accent) !important; }
+        .plan-tint { background-color: var(--plan-tint) !important; }
+        .plan-ring { box-shadow: 0 0 0 1px var(--plan-ring); }
+        .plan-hero-text { color: var(--plan-hero-text) !important; }
+        .subscription-card {
+            background: linear-gradient(145deg, var(--plan-tint), #fff 58%);
+            border-color: var(--plan-ring) !important;
+            border-top: 4px solid var(--plan-accent) !important;
+        }
+
         .dashboard-hero {
             isolation: isolate;
             min-height: 220px;
@@ -39,6 +87,7 @@
             position: absolute;
             inset: 0;
             z-index: 1;
+            background: var(--plan-hero);
         }
 
         @keyframes dashboardHeroFade {
@@ -57,17 +106,17 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-slate-900 antialiased">
+<body data-plan="basic" class="min-h-screen bg-gray-50 text-slate-900 antialiased">
     <nav class="border-b border-gray-200 bg-white">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
             <a href="/dashboard.html" class="flex items-center gap-3" aria-label="Cloudline home">
-                <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#1769e0] text-xl font-extrabold text-white">C</span>
+                <span class="plan-accent grid h-10 w-10 place-items-center rounded-xl text-xl font-extrabold text-white">C</span>
                 <span class="text-lg font-extrabold tracking-tight">Cloudline</span>
             </a>
             <div class="flex items-center gap-3 sm:gap-4">
                 <label class="group relative block cursor-pointer" title="Change profile picture">
                     <input id="avatarFile" type="file" accept="image/*" class="sr-only">
-                    <span class="grid h-11 w-11 place-items-center overflow-hidden rounded-full bg-blue-50 text-sm font-bold text-[#1769e0] ring-1 ring-blue-100">
+                    <span class="plan-tint plan-accent-text plan-ring grid h-11 w-11 place-items-center overflow-hidden rounded-full text-sm font-bold">
                         <span id="avatarInitials" class="col-start-1 row-start-1">U</span>
                         <img id="userAvatar" alt="Your profile picture" class="col-start-1 row-start-1 hidden h-full w-full object-cover">
                     </span>
@@ -88,9 +137,9 @@
             <div class="dashboard-hero__image" style="background-image: url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1800&q=85');"></div>
             <div class="dashboard-hero__image" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1800&q=85');"></div>
             <div class="dashboard-hero__image" style="background-image: url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1800&q=85');"></div>
-            <div class="dashboard-hero__overlay bg-gradient-to-r from-slate-950/90 via-blue-950/75 to-slate-950/45"></div>
+            <div class="dashboard-hero__overlay"></div>
             <div class="relative z-10 max-w-3xl [text-shadow:0_2px_18px_rgba(0,0,0,0.45)]">
-                <p class="text-sm font-semibold text-blue-100">Your cloud workspace</p>
+                <p class="plan-hero-text text-sm font-semibold">Your cloud workspace</p>
                 <h1 class="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
                     <span id="greeting">Good afternoon</span>, <span id="userName" class="text-white"></span>
                 </h1>
@@ -105,7 +154,7 @@
                         <p class="text-sm font-semibold text-slate-500">Storage overview</p>
                         <h2 class="mt-2 text-2xl font-extrabold">245 GB <span class="text-base font-medium text-slate-500">of 1 TB used</span></h2>
                     </div>
-                    <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#1769e0]" aria-hidden="true">
+                    <span class="plan-tint plan-accent-text grid h-11 w-11 shrink-0 place-items-center rounded-xl" aria-hidden="true">
                         <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 7.5A2.25 2.25 0 0 1 6 5.25h4.1c.6 0 1.18.24 1.6.66l1.08 1.08c.42.42 1 .66 1.6.66H18A2.25 2.25 0 0 1 20.25 9.9v7.35A2.25 2.25 0 0 1 18 19.5H6a2.25 2.25 0 0 1-2.25-2.25V7.5Z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5h15" />
@@ -114,20 +163,23 @@
                 </div>
                 <div class="mt-7">
                     <div class="h-3 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="24.5">
-                        <div class="h-full w-[24.5%] rounded-full bg-[#1769e0]"></div>
+                        <div class="plan-accent h-full w-[24.5%] rounded-full"></div>
                     </div>
                     <div class="mt-3 flex items-center justify-between text-sm">
-                        <span class="font-semibold text-[#1769e0]">24.5% used</span>
+                        <span class="plan-accent-text font-semibold">24.5% used</span>
                         <span class="text-slate-500">755 GB available</span>
                     </div>
                 </div>
             </article>
 
-            <article class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+            <article id="subscriptionCard" class="subscription-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
                 <p class="text-sm font-semibold text-slate-500">Your subscription</p>
-                <h2 id="subscriptionPlanName" class="mt-2 text-2xl font-extrabold">1 TB Yearly Plan</h2>
+                <div class="mt-2 flex flex-wrap items-center gap-3">
+                    <h2 id="subscriptionPlanName" class="plan-accent-text text-2xl font-extrabold">1 TB Yearly Plan</h2>
+                    <span id="subscriptionPlanBadge" class="hidden rounded-full px-2.5 py-1 text-xs font-bold uppercase">Active plan</span>
+                </div>
                 <div class="mt-5 flex items-center gap-3 text-slate-700">
-                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600" aria-hidden="true">
+                    <span class="plan-tint plan-accent-text grid h-10 w-10 shrink-0 place-items-center rounded-lg" aria-hidden="true">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75v2.5m9-2.5v2.5M4.5 9h15M6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5v11.25A2.25 2.25 0 0 1 17.25 21H6.75A2.25 2.25 0 0 1 4.5 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25Z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="m8.5 14 2.25 2.25L15.75 11" />
@@ -139,7 +191,7 @@
                     </div>
                 </div>
                 <p id="paymentStatus" class="mt-4 hidden rounded-lg bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800" role="status"></p>
-                <button onclick="renewSubscription()" type="button" class="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-[#1769e0] px-5 py-3 font-bold text-white transition hover:bg-[#0e56bf] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">
+                <button onclick="renewSubscription()" type="button" class="plan-accent mt-6 inline-flex w-full items-center justify-center rounded-xl px-5 py-3 font-bold text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">
                     Renew Subscription for 1 Year
                 </button>
             </article>
@@ -377,6 +429,18 @@
                 document.getElementById('subscriptionPlanName').textContent = planName
                     ? `${planName} Yearly Plan`
                     : 'Choose a yearly plan';
+                const today = new Date().toISOString().slice(0, 10);
+                const activePlan = ['basic', 'gold', 'platinum', 'diamond'].includes(data.user.subscriptionPlan)
+                    && /^\d{4}-\d{2}-\d{2}$/.test(data.user.subscriptionEnd)
+                    && data.user.subscriptionEnd >= today;
+                const activePlanId = activePlan ? data.user.subscriptionPlan : 'basic';
+                document.body.dataset.plan = activePlanId;
+                const planBadge = document.getElementById('subscriptionPlanBadge');
+                planBadge.textContent = activePlan ? `${planName} active` : 'No active plan';
+                planBadge.classList.toggle('hidden', !activePlan);
+                planBadge.classList.toggle('plan-tint', activePlan);
+                planBadge.classList.toggle('plan-accent-text', activePlan);
+                planBadge.classList.toggle('plan-ring', activePlan);
                 const hour = new Date().getHours();
                 document.getElementById('greeting').textContent =
                     hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
@@ -397,6 +461,16 @@
                         APPROVED: `Payment approved. Your subscription is active until ${data.user.subscriptionEnd}.`,
                         REJECTED: 'Payment request was rejected. Check your TrxID and submit a new request.'
                     };
+                    if ((latestRequest.paymentMethod === 'ONLINE' || latestRequest.paymentMethod === 'amr') && latestRequest.status === 'PENDING') {
+                        messages.PENDING = latestRequest.paymentMethod === 'amr'
+                            ? 'Your AMR payment was verified and is waiting for admin approval.'
+                            : 'Your bKash payment was verified and is waiting for admin approval.';
+                    }
+                    if ((latestRequest.paymentMethod === 'ONLINE' || latestRequest.paymentMethod === 'amr') && latestRequest.status === 'REJECTED') {
+                        messages.REJECTED = latestRequest.paymentMethod === 'amr'
+                            ? 'Your AMR payment was rejected. Contact the administrator before paying again.'
+                            : 'Your online bKash payment was rejected. Contact the administrator before paying again.';
+                    }
                     statusElement.textContent = messages[latestRequest.status] || '';
                     statusElement.classList.toggle('hidden', !statusElement.textContent);
                     const isApproved = latestRequest.status === 'APPROVED';
@@ -418,6 +492,11 @@
             diamond: { name: 'Diamond', amount: 2000 }
         };
 
+        const paymentMethodMeta = {
+            bkash: { label: 'bKash', accent: 'bg-pink-50 text-pink-700', helper: 'Never share your PIN or OTP.' },
+            amr: { label: 'AMR', accent: 'bg-emerald-50 text-emerald-700', helper: 'Enter the sender number and payment reference from your AMR transfer.' }
+        };
+
         const planPicker = document.getElementById('planPicker');
 
         async function renewSubscription(planId) {
@@ -430,106 +509,79 @@
             if (!selectedPlan) return;
 
             try {
-                const response = await fetch('/api/renew', {
-                    method: 'POST',
-                    credentials: 'same-origin'
+                const methodSelection = await Swal.fire({
+                    title: 'Choose payment method',
+                    html: `
+                        <div class="text-left">
+                            <label for="payment-method-select" class="mb-1 block text-sm font-semibold text-slate-700">Select a payment method</label>
+                            <select id="payment-method-select" class="swal2-input !m-0 !w-full">
+                                <option value="bkash">bKash</option>
+                                <option value="amr">AMR</option>
+                            </select>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Continue',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: '#1769e0',
+                    preConfirm: () => document.getElementById('payment-method-select').value
                 });
-                const data = await response.json().catch(() => ({}));
 
-                if (response.ok && data.success) {
-                    await loadDashboard();
-                    await Swal.fire({
-                        title: 'Subscription renewed',
-                        text: 'Your plan has been renewed for one year.',
-                        icon: 'success',
-                        confirmButtonColor: '#1769e0'
-                    });
-                    return;
-                }
+                if (!methodSelection.isConfirmed) return;
 
-                if (response.status !== 402) {
-                    await Swal.fire('Renewal unavailable', data.message || 'Could not renew the subscription.', 'error');
-                    return;
-                }
-
-                const instructionsResponse = await fetch(`/api/payments/bkash/instructions?plan=${encodeURIComponent(planId)}`, {
+                const paymentMethod = methodSelection.value || 'bkash';
+                const methodInfo = paymentMethodMeta[paymentMethod] || paymentMethodMeta.bkash;
+                const instructionsResponse = await fetch(`/api/payments/${paymentMethod}/instructions?plan=${encodeURIComponent(planId)}`, {
                     credentials: 'same-origin'
                 });
                 const instructions = await instructionsResponse.json().catch(() => ({}));
 
                 if (!instructionsResponse.ok || !instructions.success) {
-                    await Swal.fire('Payment unavailable', instructions.message || 'bKash payment is not configured.', 'error');
+                    await Swal.fire('Payment unavailable', instructions.message || `${methodInfo.label} payment is not configured.`, 'error');
                     return;
                 }
 
                 const paymentForm = await Swal.fire({
-                    title: 'Pay with bKash',
+                    title: `Pay with ${methodInfo.label}`,
                     html: `
                         <div class="text-left">
-                            <div class="mb-5 flex items-center gap-3 rounded-xl border border-pink-100 bg-gradient-to-r from-pink-50 to-white p-4">
-                                <span class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-[#e2136e] text-white shadow-sm" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8">
-                                        <rect x="5" y="2.75" width="14" height="18.5" rx="2.5" />
-                                        <path stroke-linecap="round" d="M9 6.5h6M10 18h4" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m9 12 2 2 4-4" />
-                                    </svg>
-                                </span>
-                                </div>
-                                <div class="mt-5 flex items-center justify-between gap-4">
-                                    <button id="previousPlan" type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Previous plan">
-                                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg>
-                                    </button>
-                                    <div class="flex flex-col items-center gap-2">
-                                        <div id="planSlideDots" class="flex items-center gap-2" role="group" aria-label="Choose a plan slide">
-                                            <button type="button" data-slide-to="0" class="h-2.5 w-7 rounded-full bg-[#1769e0] transition-all" aria-label="Show Basic plan" aria-current="true"></button>
-                                            <button type="button" data-slide-to="1" class="h-2.5 w-2.5 rounded-full bg-slate-300 transition-all" aria-label="Show Gold plan"></button>
-                                            <button type="button" data-slide-to="2" class="h-2.5 w-2.5 rounded-full bg-slate-300 transition-all" aria-label="Show Platinum plan"></button>
-                                            <button type="button" data-slide-to="3" class="h-2.5 w-2.5 rounded-full bg-slate-300 transition-all" aria-label="Show Diamond plan"></button>
-                                        </div>
-                                        <p id="planSlideCount" class="text-xs font-semibold tabular-nums text-slate-500">1 / 4</p>
-                                    </div>
-                                    <button id="nextPlan" type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Next plan">
-                                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
-                                    </button>
-                                </div>
-                                    <p class="mt-1 text-xs font-medium text-slate-500">MOBILE PAYMENT</p>
-                            <p class="mt-5 text-center text-xs text-slate-500">All plans are billed yearly. Payment is verified by the Cloudline team before activation.</p>
-                                </div>
+                            <p class="mb-4 text-sm text-slate-600">Send <strong>৳${Number(instructions.amount).toFixed(0)} ${instructions.currency}</strong> for the <strong>${selectedPlan.name}</strong> yearly plan to this ${methodInfo.label} number.</p>
+                            <div class="mb-4 flex items-center justify-between gap-3 rounded-lg ${methodInfo.accent} p-3">
+                                <strong id="payment-receiver-number" class="text-lg"></strong>
+                                <button id="copy-payment-number" type="button" class="text-sm font-semibold underline">Copy</button>
                             </div>
-                            <p class="mb-2 text-sm text-slate-600">You selected <strong>${selectedPlan.name}</strong>. Send <strong>৳${Number(instructions.amount).toFixed(0)} ${instructions.currency}</strong> to this bKash number using your bKash app.</p>
-                            <div class="mb-4 flex items-center justify-between gap-3 rounded-lg bg-pink-50 p-3">
-                                <strong id="bkash-receiver-number" class="text-lg text-pink-700"></strong>
-                                <button id="copy-bkash-number" type="button" class="text-sm font-semibold text-pink-700 underline">Copy</button>
-                            </div>
-                            <p class="mb-4 text-xs text-slate-500">After payment, enter the sender number and TrxID from your bKash confirmation. Never share your PIN or OTP.</p>
-                            <label for="bkash-payer-number" class="mb-1 block text-left text-sm font-semibold">Your bKash sender number</label>
-                            <input id="bkash-payer-number" class="swal2-input !m-0 !mb-4 !w-full" inputmode="tel" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel">
-                            <label for="bkash-transaction-id" class="mb-1 block text-left text-sm font-semibold">Transaction ID (TrxID)</label>
-                            <input id="bkash-transaction-id" class="swal2-input !m-0 !w-full" maxlength="20" placeholder="Enter bKash TrxID" autocomplete="off">
+                            <p class="mb-4 text-xs text-slate-500">${methodInfo.helper}</p>
+                            <label for="payment-payer-number" class="mb-1 block text-left text-sm font-semibold">Your ${methodInfo.label} sender number</label>
+                            <input id="payment-payer-number" class="swal2-input !m-0 !mb-4 !w-full" inputmode="tel" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel">
+                            <label for="payment-transaction-id" class="mb-1 block text-left text-sm font-semibold">Transaction ID (TrxID)</label>
+                            <input id="payment-transaction-id" class="swal2-input !m-0 !w-full" maxlength="20" placeholder="Enter the transaction ID" autocomplete="off">
+                            <p class="mt-4 text-center text-xs text-slate-500">Your subscription starts after an admin verifies the payment.</p>
                         </div>
                     `,
                     didOpen: () => {
-                        document.getElementById('bkash-receiver-number').textContent = instructions.receiverNumber;
-                        document.getElementById('copy-bkash-number').addEventListener('click', async () => {
+                        const receiverElement = document.getElementById('payment-receiver-number');
+                        const copyButton = document.getElementById('copy-payment-number');
+                        receiverElement.textContent = instructions.receiverNumber;
+                        copyButton.addEventListener('click', async () => {
                             try {
                                 await navigator.clipboard.writeText(instructions.receiverNumber);
-                                document.getElementById('copy-bkash-number').textContent = 'Copied';
+                                copyButton.textContent = 'Copied';
                             } catch {
-                                document.getElementById('bkash-receiver-number').focus();
+                                receiverElement.focus();
                             }
                         });
                     },
                     preConfirm: () => {
-                        const payerNumber = document.getElementById('bkash-payer-number').value.trim();
-                        const transactionId = document.getElementById('bkash-transaction-id').value.trim();
+                        const payerNumber = document.getElementById('payment-payer-number').value.trim();
+                        const transactionId = document.getElementById('payment-transaction-id').value.trim();
 
                         if (!/^01[3-9]\d{8}$/.test(payerNumber)) {
-                            Swal.showValidationMessage('Enter a valid 11-digit bKash sender number.');
+                            Swal.showValidationMessage(`Enter a valid 11-digit ${methodInfo.label} sender number.`);
                             return false;
                         }
 
                         if (!/^[a-zA-Z0-9]{6,20}$/.test(transactionId)) {
-                            Swal.showValidationMessage('Enter a valid bKash TrxID (6-20 letters or numbers).');
+                            Swal.showValidationMessage(`Enter a valid ${methodInfo.label} TrxID (6-20 letters or numbers).`);
                             return false;
                         }
 
@@ -537,33 +589,29 @@
                     },
                     showCancelButton: true,
                     confirmButtonText: 'Submit for verification',
-                    cancelButtonText: 'Not now',
+                    cancelButtonText: 'Cancel',
                     confirmButtonColor: '#1769e0'
                 });
 
                 if (!paymentForm.isConfirmed) return;
 
-                const paymentResponse = await fetch('/api/payments/bkash/manual-request', {
+                const paymentResponse = await fetch(`/api/payments/${paymentMethod}/manual-request`, {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...paymentForm.value, planId })
+                    body: JSON.stringify({ ...paymentForm.value, paymentMethod, planId })
                 });
                 const paymentData = await paymentResponse.json().catch(() => ({}));
 
                 if (!paymentResponse.ok || !paymentData.success) {
-                    await Swal.fire(
-                        'Request not submitted',
-                        paymentData.message || 'Could not submit the payment request. Please try again.',
-                        'error'
-                    );
+                    await Swal.fire('Request not submitted', paymentData.message || 'Could not submit the payment request.', 'error');
                     return;
                 }
 
                 await loadDashboard();
                 await Swal.fire({
-                    title: 'Payment request submitted',
-                    text: `The admin will verify your ৳${selectedPlan.amount}/yr ${selectedPlan.name} payment and activate your subscription after approval.`,
+                    title: 'Payment submitted',
+                    text: `Your ৳${selectedPlan.amount}/yr ${selectedPlan.name} request is pending admin verification.`,
                     icon: 'success',
                     confirmButtonColor: '#1769e0'
                 });

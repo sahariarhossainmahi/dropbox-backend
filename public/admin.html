@@ -19,7 +19,7 @@
         <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 px-6 py-5">
                 <h1 class="text-2xl font-bold">Pending Payment Requests</h1>
-                <p class="mt-1 text-sm text-gray-500">Verify each bKash transaction before approving a subscription.</p>
+                <p class="mt-1 text-sm text-gray-500">Verify each payment request before approving a subscription.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[900px] text-left">
@@ -27,7 +27,7 @@
                         <tr>
                             <th class="px-4 py-3">User</th>
                             <th class="px-4 py-3">Plan / Amount</th>
-                            <th class="px-4 py-3">Sender bKash</th>
+                            <th class="px-4 py-3">Sender / Payment Number</th>
                             <th class="px-4 py-3">Transaction ID</th>
                             <th class="px-4 py-3">Submitted</th>
                             <th class="px-4 py-3">Status / Action</th>
@@ -43,10 +43,11 @@
                 <h2 class="text-2xl font-bold">User Management</h2>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[720px] text-left">
+                <table class="w-full min-w-[820px] text-left">
                     <thead class="bg-gray-50 text-sm text-gray-600">
                         <tr>
                             <th class="px-4 py-3">Username</th>
+                            <th class="px-4 py-3">Subscription Plan</th>
                             <th class="px-4 py-3">Subscription Ends</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Actions</th>
@@ -102,6 +103,17 @@
                     nameCell.className = 'py-4 px-4 font-bold text-blue-600';
                     nameCell.textContent = user.username;
 
+                    const planCell = document.createElement('td');
+                    planCell.className = 'py-4 px-4';
+                    const planLabel = document.createElement('span');
+                    planLabel.textContent = user.subscriptionPlan
+                        ? `${user.subscriptionPlan.charAt(0).toUpperCase()}${user.subscriptionPlan.slice(1)} Yearly`
+                        : 'Not selected';
+                    planLabel.className = user.subscriptionPlan
+                        ? 'inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700'
+                        : 'text-sm text-gray-500';
+                    planCell.append(planLabel);
+
                     const subscriptionCell = document.createElement('td');
                     subscriptionCell.className = 'py-4 px-4 font-semibold';
                     subscriptionCell.textContent = user.subscriptionEnd;
@@ -136,7 +148,7 @@
                     addAction(actions, 'Cancel Plan', 'bg-red-600', () => manageSubscription(user.id, 'cancel'));
                     addAction(actions, 'Delete User', 'border border-gray-300 bg-white !text-gray-700', () => deleteUser(user.id));
                     actionsCell.append(actions);
-                    row.append(nameCell, subscriptionCell, statusCell, actionsCell);
+                    row.append(nameCell, planCell, subscriptionCell, statusCell, actionsCell);
                     userTable.append(row);
                 });
             } catch (error) {
@@ -172,7 +184,11 @@
                     const values = [
                         paymentRequest.username,
                         `${paymentRequest.planName} · ৳${Number(paymentRequest.amount).toFixed(0)} ${paymentRequest.currency}`,
-                        paymentRequest.payerNumber,
+                        paymentRequest.paymentMethod === 'ONLINE'
+                            ? 'Online bKash checkout'
+                            : paymentRequest.paymentMethod === 'amr'
+                                ? 'AMR transfer'
+                                : paymentRequest.payerNumber,
                         paymentRequest.transactionId,
                         new Date(paymentRequest.createdAt).toLocaleString()
                     ];
@@ -195,8 +211,8 @@
                         pendingLabel.className = 'mb-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800';
                         const actions = document.createElement('div');
                         actions.className = 'flex gap-2';
-                        addAction(actions, 'Approve', 'bg-green-600', () => reviewPaymentRequest(paymentRequest.id, 'approve'));
-                        addAction(actions, 'Reject', 'bg-red-600', () => reviewPaymentRequest(paymentRequest.id, 'reject'));
+                        addAction(actions, 'Approve', 'bg-green-600', () => reviewPaymentRequest(paymentRequest.id, 'approve', paymentRequest.paymentMethod));
+                        addAction(actions, 'Reject', 'bg-red-600', () => reviewPaymentRequest(paymentRequest.id, 'reject', paymentRequest.paymentMethod));
                         statusCell.append(pendingLabel, actions);
                     } else {
                         const status = document.createElement('span');
@@ -215,13 +231,15 @@
             }
         }
 
-        async function reviewPaymentRequest(requestId, action) {
+        async function reviewPaymentRequest(requestId, action, paymentMethod) {
             const isApproval = action === 'approve';
             const confirmation = await Swal.fire({
                 title: isApproval ? 'Approve payment?' : 'Reject payment request?',
                 text: isApproval
-                    ? 'Confirm only after verifying the TrxID and amount in your bKash account. Approval activates the subscription for one year.'
-                    : 'The user will need to submit a new payment request.',
+                    ? 'Confirm only after verifying the TrxID and amount in the customer payment account. Approval activates the subscription for one year.'
+                    : paymentMethod === 'ONLINE'
+                        ? 'This online bKash payment has already been charged. Confirm the transaction before rejecting; rejection does not issue an automatic refund.'
+                        : 'The user will need to submit a new payment request.',
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonText: isApproval ? 'Approve subscription' : 'Reject request',
@@ -361,6 +379,7 @@
         }
 
         init();
+        window.setInterval(loadPaymentRequests, 15000);
     </script>
 </body>
 </html>
