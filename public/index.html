@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudline | 1TB Yearly Plan</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Manrope', sans-serif;
+        }
+
+        .dot-grid {
+            background-image: radial-gradient(#b9cde3 0.8px, transparent 0.8px);
+            background-size: 17px 17px;
+        }
+
+        .tab-active {
+            color: #1769e0;
+            border-bottom: 2px solid #1769e0;
+        }
+
+        input:focus {
+            outline: 2px solid #1769e0;
+            outline-offset: 1px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-[#f6f9fc] text-[#102b4e] antialiased">
+
+<header class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
+    <a href="/" class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#1769e0] text-white font-bold text-xl">C</span>
+        <span class="text-lg font-extrabold tracking-tight">
+            cloudline <span class="font-medium text-[#69809a]">/ demo</span>
+        </span>
+    </a>
+
+    <span class="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
+        1TB Yearly Plan
+    </span>
+</header>
+
+<main class="mx-auto max-w-7xl px-6 pb-16 pt-5 lg:px-10">
+
+    <section class="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+        <div class="py-6 lg:py-12">
+            <span class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
+                <span class="h-2 w-2 animate-pulse rounded-full bg-green-500"></span>
+                Cloudline Demo Offer
+            </span>
+
+            <h1 class="mt-6 text-4xl font-extrabold leading-tight tracking-tight sm:text-6xl">
+                Your files. Your space. Your next idea.
+            </h1>
+
+            <p class="mt-5 max-w-xl text-lg leading-8 text-[#536b86]">
+                Keep your important files, photos and projects together with our
+                demo 1TB yearly cloud storage plan.
+            </p>
+
+            <div class="mt-8 flex flex-wrap items-center gap-4">
+                <div class="rounded-2xl border border-blue-100 bg-white px-6 py-4 shadow-sm">
+                    <p class="text-sm font-semibold text-gray-500">Yearly plan</p>
+                    <p class="mt-1 text-3xl font-extrabold text-blue-700">৳2,000</p>
+                    <p class="text-xs text-gray-500">BDT / year</p>
+                </div>
+
+                <div class="rounded-2xl border border-blue-100 bg-white px-6 py-4 shadow-sm">
+                    <p class="text-sm font-semibold text-gray-500">Storage plan</p>
+                    <p class="mt-1 text-3xl font-extrabold">1TB</p>
+                    <p class="text-xs text-gray-500">Demo offer</p>
+                </div>
+            </div>
+
+            <div class="mt-8 flex items-center gap-3 text-sm text-gray-500">
+                <span class="text-xl">✓</span>
+                Responsive design
+                <span class="text-xl">✓</span>
+                Simple account management
+            </div>
+        </div>
+
+        <div class="relative min-h-[300px] overflow-hidden rounded-3xl bg-[#d9e9f8] shadow-xl sm:min-h-[440px]">
+            <img
+                src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1400&q=85"
+                alt="Cloud computing server infrastructure"
+                class="absolute inset-0 h-full w-full object-cover"
+            >
+            <div class="absolute inset-0 bg-gradient-to-tr from-[#09284d]/80 via-[#0d4671]/25 to-transparent"></div>
+
+            <div class="absolute bottom-8 left-8 right-8 text-white">
+                <p class="text-sm font-bold uppercase tracking-widest text-blue-200">
+                    Store your possibilities
+                </p>
+                <h2 class="mt-3 text-3xl font-extrabold sm:text-4xl">
+                    Room for every next idea.
+                </h2>
+            </div>
+        </div>
+    </section>
+
+    <section id="sign-in" class="mt-14 grid gap-8 border-t border-[#dce5ef] pt-10 lg:grid-cols-[1fr_420px] lg:gap-16">
+
+        <div class="max-w-xl">
+            <p class="text-sm font-bold uppercase tracking-widest text-blue-600">
+                Get started
+            </p>
+
+            <h2 id="form-title" class="mt-3 text-3xl font-extrabold tracking-tight">
+                Sign in to your account
+            </h2>
+
+            <p id="form-description" class="mt-3 leading-7 text-gray-500">
+                Enter your username and password to access your dashboard.
+            </p>
+
+            <div class="mt-6 rounded-xl border border-blue-100 bg-white p-5">
+                <p class="font-bold">Demo project information</p>
+                <p class="mt-2 text-sm leading-6 text-gray-500">
+                    This is a demonstration website. The 1TB plan and payment
+                    features are for project testing and do not represent an
+                    official Dropbox offer.
+                </p>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-[#e1e9f2] bg-white p-6 shadow-sm sm:p-8">
+
+            <div class="mb-6 flex gap-6 border-b border-gray-200">
+                <button
+                    type="button"
+                    id="tab-login"
+                    class="tab-active pb-3 font-bold"
+                >
+                    Log In
+                </button>
+
+                <button
+                    type="button"
+                    id="tab-register"
+                    class="pb-3 font-bold text-gray-400 hover:text-blue-600"
+                >
+                    Create Account
+                </button>
+            </div>
+
+            <form id="auth-form" class="space-y-5">
+
+                <label class="block text-sm font-bold" for="username">
+                    Username
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        required
+                        minlength="3"
+                        maxlength="30"
+                        autocomplete="username"
+                        placeholder="Enter username"
+                        class="mt-2 w-full rounded-xl border border-[#cbd8e7] px-4 py-3 font-normal"
+                    >
+                </label>
+
+                <label class="block text-sm font-bold" for="password">
+                    Password
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
+                        minlength="8"
+                        maxlength="128"
+                        autocomplete="current-password"
+                        placeholder="Enter password"
+                        class="mt-2 w-full rounded-xl border border-[#cbd8e7] px-4 py-3 font-normal"
+                    >
+                </label>
+
+                <p id="form-error" class="hidden rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert"></p>
+
+                <button
+                    id="submit-btn"
+                    type="submit"
+                    class="flex w-full items-center justify-center rounded-xl bg-[#1769e0] px-5 py-3.5 font-bold text-white transition hover:bg-[#0e56bf] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    Sign In
+                </button>
+
+                <p id="loading-message" class="hidden text-center text-sm text-gray-500">
+                    Please wait...
+                </p>
+
+            </form>
+
+            <p class="mt-6 text-center text-xs leading-5 text-gray-400">
+                Your account is managed by the Cloudline Demo backend.
+            </p>
+        </div>
+    </section>
+
+</main>
+
+<footer class="border-t border-[#dce5ef] px-6 py-6 text-center text-sm text-gray-500">
+    Cloudline Demo · 1TB Yearly Plan · Demonstration project
+</footer>
+
+<script>
+(() => {
+    "use strict";
+
+    const form = document.getElementById("auth-form");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const submitButton = document.getElementById("submit-btn");
+    const formTitle = document.getElementById("form-title");
+    const formDescription = document.getElementById("form-description");
+    const errorElement = document.getElementById("form-error");
+    const loadingMessage = document.getElementById("loading-message");
+    const loginTab = document.getElementById("tab-login");
+    const registerTab = document.getElementById("tab-register");
+
+    let isLogin = true;
+
+    function showError(message) {
+        errorElement.textContent = message;
+        errorElement.classList.remove("hidden");
+    }
+
+    function clearError() {
+        errorElement.textContent = "";
+        errorElement.classList.add("hidden");
+    }
+
+    function setLoading(loading) {
+        submitButton.disabled = loading;
+        loginTab.disabled = loading;
+        registerTab.disabled = loading;
+        loadingMessage.classList.toggle("hidden", !loading);
+
+        if (loading) {
+            submitButton.textContent = "Please wait...";
+        } else {
+            submitButton.textContent = isLogin ? "Sign In" : "Create Account";
+        }
+    }
+
+    function switchMode(loginMode) {
+        isLogin = loginMode;
+        clearError();
+
+        formTitle.textContent = isLogin
+            ? "Sign in to your account"
+            : "Create your account";
+
+        formDescription.textContent = isLogin
+            ? "Enter your username and password to access your dashboard."
+            : "Create an account to get started with the demo plan.";
+
+        passwordInput.autocomplete = isLogin
+            ? "current-password"
+            : "new-password";
+
+        loginTab.className = isLogin
+            ? "tab-active pb-3 font-bold"
+            : "pb-3 font-bold text-gray-400 hover:text-blue-600";
+
+        registerTab.className = !isLogin
+            ? "tab-active pb-3 font-bold"
+            : "pb-3 font-bold text-gray-400 hover:text-blue-600";
+
+        submitButton.textContent = isLogin ? "Sign In" : "Create Account";
+    }
+
+    loginTab.addEventListener("click", () => switchMode(true));
+    registerTab.addEventListener("click", () => switchMode(false));
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearError();
+
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!username || !password) {
+            showError("Please enter both username and password.");
+            return;
+        }
+
+        if (!isLogin && !/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+            showError("Username must be 3-30 characters using letters, numbers or underscores.");
+            return;
+        }
+
+        if (!isLogin && (password.length < 8 || password.length > 128)) {
+            showError("Password must be between 8 and 128 characters.");
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const endpoint = isLogin ? "/api/login" : "/api/register";
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.success) {
+                showError(data.message || "The request failed. Please try again.");
+                return;
+            }
+
+            if (!isLogin) {
+                if (window.Swal) {
+                    await Swal.fire({
+                        title: "Account created!",
+                        text: "Your account was created. You can now log in.",
+                        icon: "success",
+                        confirmButtonColor: "#1769e0"
+                    });
+                } else {
+                    alert("Account created successfully. Please log in.");
+                }
+
+                passwordInput.value = "";
+                switchMode(true);
+                usernameInput.value = username;
+                passwordInput.focus();
+                return;
+            }
+
+            // The server sets an HttpOnly session cookie.
+            // Do not store passwords or authentication data in localStorage.
+            const user = data.user;
+
+            if (!user || !user.role) {
+                showError("Login response was incomplete. Please try again.");
+                return;
+            }
+
+            window.location.href = user.role === "admin"
+                ? "/admin.html"
+                : "/dashboard.html";
+
+        } catch (error) {
+            console.error("Login/Register request failed:", error);
+            showError(
+                "Cannot connect to the server. Make sure node server.js is running and open this site at http://localhost:3000."
+            );
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    // If a valid session already exists, go to the appropriate dashboard.
+    async function checkExistingSession() {
+        try {
+            const response = await fetch("/api/me", {
+                credentials: "same-origin"
+            });
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+
+            if (data.success && data.user) {
+                window.location.replace(
+                    data.user.role === "admin"
+                        ? "/admin.html"
+                        : "/dashboard.html"
+                );
+            }
+        } catch (error) {
+            console.warn("Could not check existing session:", error);
+        }
+    }
+
+    checkExistingSession();
+})();
+</script>
+
+</body>
+</html>

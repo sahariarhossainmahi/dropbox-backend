@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | Cloudline Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <nav class="bg-white border-b px-8 py-4 flex justify-between items-center shadow-sm">
+        <span class="text-xl font-bold">cloudline <span class="text-gray-400">/ admin</span></span>
+        <div class="flex items-center gap-3">
+            <button onclick="changeAdminPassword()" type="button" class="px-3 py-2 text-sm font-semibold text-gray-600 hover:text-blue-700">Change password</button>
+            <button onclick="logout()" type="button" class="border px-4 py-2 rounded-lg hover:bg-gray-100">Log out</button>
+        </div>
+    </nav>
+    <main class="mx-auto max-w-6xl space-y-8 px-5 py-10 sm:px-8">
+        <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 px-6 py-5">
+                <h1 class="text-2xl font-bold">Pending Payment Requests</h1>
+                <p class="mt-1 text-sm text-gray-500">Verify each bKash transaction before approving a subscription.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[900px] text-left">
+                    <thead class="bg-gray-50 text-sm text-gray-600">
+                        <tr>
+                            <th class="px-4 py-3">User</th>
+                            <th class="px-4 py-3">Plan / Amount</th>
+                            <th class="px-4 py-3">Sender bKash</th>
+                            <th class="px-4 py-3">Transaction ID</th>
+                            <th class="px-4 py-3">Submitted</th>
+                            <th class="px-4 py-3">Status / Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentRequestTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 px-6 py-5">
+                <h2 class="text-2xl font-bold">User Management</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[720px] text-left">
+                    <thead class="bg-gray-50 text-sm text-gray-600">
+                        <tr>
+                            <th class="px-4 py-3">Username</th>
+                            <th class="px-4 py-3">Subscription Ends</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const userTable = document.getElementById('userTable');
+        const paymentRequestTable = document.getElementById('paymentRequestTable');
+
+        async function requestJson(url, options = {}) {
+            const response = await fetch(url, {
+                credentials: 'same-origin',
+                ...options,
+                headers: {
+                    ...(options.headers || {}),
+                    ...(options.body ? { 'Content-Type': 'application/json' } : {})
+                }
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'The request failed. Please try again.');
+            }
+
+            return data;
+        }
+
+        function addAction(cell, label, color, action) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = label;
+            button.className = `${color} text-white px-3 py-1 rounded hover:opacity-90`;
+            button.addEventListener('click', action);
+            cell.append(button);
+        }
+
+        async function loadUsers() {
+            try {
+                const data = await requestJson('/api/admin/users');
+                userTable.replaceChildren();
+
+                data.users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'py-4 px-4 font-bold text-blue-600';
+                    nameCell.textContent = user.username;
+
+                    const subscriptionCell = document.createElement('td');
+                    subscriptionCell.className = 'py-4 px-4 font-semibold';
+                    subscriptionCell.textContent = user.subscriptionEnd;
+                    subscriptionCell.classList.toggle('text-red-500', user.subscriptionEnd === 'Cancelled');
+
+                    const statusCell = document.createElement('td');
+                    statusCell.className = 'py-4 px-4';
+                    const today = new Date().toISOString().slice(0, 10);
+                    const isActive = /^\d{4}-\d{2}-\d{2}$/.test(user.subscriptionEnd) && user.subscriptionEnd >= today;
+                    const status = user.subscriptionEnd === 'Cancelled'
+                        ? 'Cancelled'
+                        : isActive
+                            ? 'Active'
+                            : user.subscriptionEnd === 'Inactive'
+                                ? 'Awaiting payment'
+                                : 'Expired';
+                    const statusBadge = document.createElement('span');
+                    statusBadge.textContent = status;
+                    statusBadge.className = status === 'Active'
+                        ? 'inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700'
+                        : status === 'Awaiting payment'
+                            ? 'inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800'
+                            : 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600';
+                    statusCell.append(statusBadge);
+
+                    const actionsCell = document.createElement('td');
+                    actionsCell.className = 'py-4 px-4';
+                    const actions = document.createElement('div');
+                    actions.className = 'flex flex-wrap gap-2';
+                    addAction(actions, 'Extend 1 Year', 'bg-green-600', () => manageSubscription(user.id, 'extend'));
+                    addAction(actions, 'Reduce 1 Year', 'bg-amber-600', () => manageSubscription(user.id, 'reduce'));
+                    addAction(actions, 'Cancel Plan', 'bg-red-600', () => manageSubscription(user.id, 'cancel'));
+                    addAction(actions, 'Delete User', 'border border-gray-300 bg-white !text-gray-700', () => deleteUser(user.id));
+                    actionsCell.append(actions);
+                    row.append(nameCell, subscriptionCell, statusCell, actionsCell);
+                    userTable.append(row);
+                });
+            } catch (error) {
+                if (error.message === 'Admin access required.' || error.message === 'Not logged in.') {
+                    window.location.href = '/index.html';
+                    return;
+                }
+                await Swal.fire('Could not load users', error.message, 'error');
+            }
+        }
+
+        async function loadPaymentRequests() {
+            try {
+                const data = await requestJson('/api/admin/payment-requests');
+                paymentRequestTable.replaceChildren();
+                const pendingRequests = data.requests.filter(paymentRequest => paymentRequest.status === 'PENDING');
+
+                if (!pendingRequests.length) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 6;
+                    cell.className = 'px-4 py-8 text-center text-sm text-gray-500';
+                    cell.textContent = 'No payment requests yet.';
+                    row.append(cell);
+                    paymentRequestTable.append(row);
+                    return;
+                }
+
+                pendingRequests.forEach(paymentRequest => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-t border-gray-100';
+
+                    const values = [
+                        paymentRequest.username,
+                        `${paymentRequest.planName} · ৳${Number(paymentRequest.amount).toFixed(0)} ${paymentRequest.currency}`,
+                        paymentRequest.payerNumber,
+                        paymentRequest.transactionId,
+                        new Date(paymentRequest.createdAt).toLocaleString()
+                    ];
+
+                    values.forEach((value, index) => {
+                        const cell = document.createElement('td');
+                        cell.className = 'px-4 py-4 text-sm';
+                        cell.textContent = value;
+                        if (index === 0) cell.classList.add('font-semibold');
+                        if (index === 3) cell.classList.add('font-mono');
+                        row.append(cell);
+                    });
+
+                    const statusCell = document.createElement('td');
+                    statusCell.className = 'px-4 py-4';
+
+                    if (paymentRequest.status === 'PENDING') {
+                        const pendingLabel = document.createElement('span');
+                        pendingLabel.textContent = 'PENDING';
+                        pendingLabel.className = 'mb-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800';
+                        const actions = document.createElement('div');
+                        actions.className = 'flex gap-2';
+                        addAction(actions, 'Approve', 'bg-green-600', () => reviewPaymentRequest(paymentRequest.id, 'approve'));
+                        addAction(actions, 'Reject', 'bg-red-600', () => reviewPaymentRequest(paymentRequest.id, 'reject'));
+                        statusCell.append(pendingLabel, actions);
+                    } else {
+                        const status = document.createElement('span');
+                        status.textContent = paymentRequest.status;
+                        status.className = paymentRequest.status === 'APPROVED'
+                            ? 'text-sm font-bold text-green-700'
+                            : 'text-sm font-bold text-red-700';
+                        statusCell.append(status);
+                    }
+
+                    row.append(statusCell);
+                    paymentRequestTable.append(row);
+                });
+            } catch (error) {
+                await Swal.fire('Could not load payment requests', error.message, 'error');
+            }
+        }
+
+        async function reviewPaymentRequest(requestId, action) {
+            const isApproval = action === 'approve';
+            const confirmation = await Swal.fire({
+                title: isApproval ? 'Approve payment?' : 'Reject payment request?',
+                text: isApproval
+                    ? 'Confirm only after verifying the TrxID and amount in your bKash account. Approval activates the subscription for one year.'
+                    : 'The user will need to submit a new payment request.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: isApproval ? 'Approve subscription' : 'Reject request',
+                confirmButtonColor: isApproval ? '#16a34a' : '#dc2626'
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            try {
+                const data = await requestJson(`/api/admin/payment-requests/${requestId}/${action}`, {
+                    method: 'POST'
+                });
+                await Swal.fire(isApproval ? 'Payment approved' : 'Request rejected', data.message, 'success');
+                await Promise.all([loadPaymentRequests(), loadUsers()]);
+            } catch (error) {
+                await Swal.fire('Review failed', error.message, 'error');
+            }
+        }
+
+        async function manageSubscription(userId, action) {
+            const config = {
+                extend: { title: 'Extend subscription?', text: 'This will add one year to the subscription.' },
+                reduce: { title: 'Reduce subscription?', text: 'This will subtract one year from the subscription.' },
+                cancel: { title: 'Cancel subscription?', text: 'The user account will remain, but its subscription will be cancelled.' }
+            }[action];
+            const confirmation = await Swal.fire({
+                ...config,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Confirm',
+                confirmButtonColor: action === 'extend' ? '#16a34a' : '#dc2626'
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            try {
+                const data = await requestJson(`/api/admin/${action}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ userId })
+                });
+                await Swal.fire('Subscription updated', data.message, 'success');
+                await loadUsers();
+            } catch (error) {
+                await Swal.fire('Action failed', error.message, 'error');
+            }
+        }
+
+        async function deleteUser(userId) {
+            const confirmation = await Swal.fire({
+                title: 'Delete this user?',
+                text: 'This permanently removes the user account.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Delete user',
+                confirmButtonColor: '#dc2626'
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            try {
+                const data = await requestJson(`/api/admin/users/${userId}`, { method: 'DELETE' });
+                await Swal.fire('User deleted', data.message, 'success');
+                await loadUsers();
+            } catch (error) {
+                await Swal.fire('Action failed', error.message, 'error');
+            }
+        }
+
+        async function changeAdminPassword() {
+            const result = await Swal.fire({
+                title: 'Change admin password',
+                html: `
+                    <label for="current-admin-password" class="mb-1 block text-left text-sm font-semibold">Current password</label>
+                    <input id="current-admin-password" type="password" class="swal2-input !m-0 !mb-4 !w-full" autocomplete="current-password">
+                    <label for="new-admin-password" class="mb-1 block text-left text-sm font-semibold">New password</label>
+                    <input id="new-admin-password" type="password" class="swal2-input !m-0 !mb-4 !w-full" autocomplete="new-password">
+                    <label for="confirm-admin-password" class="mb-1 block text-left text-sm font-semibold">Confirm new password</label>
+                    <input id="confirm-admin-password" type="password" class="swal2-input !m-0 !w-full" autocomplete="new-password">
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Update password',
+                confirmButtonColor: '#1769e0',
+                preConfirm: () => {
+                    const currentPassword = document.getElementById('current-admin-password').value;
+                    const newPassword = document.getElementById('new-admin-password').value;
+                    const confirmPassword = document.getElementById('confirm-admin-password').value;
+
+                    if (!currentPassword) {
+                        Swal.showValidationMessage('Enter your current password.');
+                        return false;
+                    }
+                    if (newPassword.length < 8 || newPassword.length > 128) {
+                        Swal.showValidationMessage('New password must be 8-128 characters.');
+                        return false;
+                    }
+                    if (newPassword !== confirmPassword) {
+                        Swal.showValidationMessage('The new passwords do not match.');
+                        return false;
+                    }
+
+                    return { currentPassword, newPassword };
+                }
+            });
+
+            if (!result.isConfirmed) return;
+
+            try {
+                const data = await requestJson('/api/admin/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify(result.value)
+                });
+                await Swal.fire('Password updated', data.message, 'success');
+            } catch (error) {
+                await Swal.fire('Password not changed', error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await requestJson('/api/logout', { method: 'POST' });
+            } finally {
+                window.location.href = '/index.html';
+            }
+        }
+
+        async function init() {
+            try {
+                const data = await requestJson('/api/me');
+                if (data.user.role !== 'admin') {
+                    window.location.href = '/index.html';
+                    return;
+                }
+                await Promise.all([loadUsers(), loadPaymentRequests()]);
+            } catch {
+                window.location.href = '/index.html';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
