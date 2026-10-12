@@ -1,8 +1,10 @@
 
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const multer = require("multer");
 require("dotenv").config();
 
 const app = express();
@@ -31,6 +33,32 @@ const SESSION_COOKIE = "cloudline.sid";
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000;
 
 const PUBLIC_DIR = path.join(__dirname, "public");
+const UPLOAD_DIR = path.join(PUBLIC_DIR, "uploads");
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const AVATAR_EXTENSIONS = Object.freeze({
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif"
+});
+
+const avatarUpload = multer({
+    storage: multer.diskStorage({
+        destination: (_req, _file, callback) => callback(null, UPLOAD_DIR),
+        filename: (req, file, callback) => callback(
+            null,
+            `avatar-${req.user.id}-${crypto.randomUUID()}${AVATAR_EXTENSIONS[file.mimetype]}`
+        )
+    }),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    fileFilter: (_req, file, callback) => {
+        if (!AVATAR_EXTENSIONS[file.mimetype]) {
+            return callback(new Error("Choose a JPEG, PNG, WebP, or GIF image."));
+        }
+        callback(null, true);
+    }
+});
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "10kb" }));
@@ -75,6 +103,9 @@ let users = [
         role: "user",
         subscriptionEnd: "2027-10-11",
         subscriptionPlan: "platinum",
+        failedLoginAttempts: 0,
+        accountRestricted: false,
+        accountRestrictedAt: null,
         resetCode: null
     },
     {
@@ -85,6 +116,9 @@ let users = [
         role: "admin",
         subscriptionEnd: "N/A",
         subscriptionPlan: null,
+        failedLoginAttempts: 0,
+        accountRestricted: false,
+        accountRestrictedAt: null,
         resetCode: null
     }
 ];
@@ -92,6 +126,7 @@ let users = [
 const sessions = new Map();
 const payments = new Map();
 const manualPaymentRequests = new Map();
+const recentContactRequests = new Map();
 
 function normalizeEmail(value = "") {
     return String(value).trim().toLowerCase();
@@ -99,6 +134,51 @@ function normalizeEmail(value = "") {
 
 function isValidEmail(value = "") {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+}
+
+function findUserByIdentifier(value = "") {
+    const identifier = String(value).trim();
+    const normalizedEmail = normalizeEmail(identifier);
+    return users.find(user =>
+        user.username.toLowerCase() === identifier.toLowerCase() ||
+        (user.email && normalizeEmail(user.email) === normalizedEmail)
+    );
+}
+
+function maskEmailAddress(value = "") {
+    const [localPart, domain] = normalizeEmail(value).split("@");
+    if (!localPart || !domain) return "";
+    const maskedLocalPart = localPart.length <= 3
+        ? `${localPart[0]}${"*".repeat(Math.max(1, localPart.length - 1))}`
+        : `${localPart[0]}${"*".repeat(localPart.length - 3)}${localPart.slice(-2)}`;
+    return `${maskedLocalPart}@${domain}`;
+}
+
+function escapeHtml(value = "") {
+    return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+function hasSupportedImageSignature(buffer, mimeType) {
+    if (mimeType === "image/jpeg") {
+        return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    }
+    if (mimeType === "image/png") {
+        return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    }
+    if (mimeType === "image/gif") {
+        return buffer.subarray(0, 6).toString("ascii").startsWith("GIF8");
+    }
+    if (mimeType === "image/webp") {
+        return buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+            buffer.subarray(8, 12).toString("ascii") === "WEBP";
+    }
+    return false;
 }
 
 function generateResetCode() {
@@ -149,6 +229,7 @@ function publicUser(user) {
         id: user.id,
         username: user.username,
         email: user.email || null,
+        avatarUrl: user.avatarUrl || null,
         role: user.role,
         subscriptionEnd: user.subscriptionEnd,
         subscriptionPlan: user.subscriptionPlan || null
@@ -301,6 +382,39 @@ app.get("/api/me", (req, res) => {
     });
 });
 
+app.post("/api/upload-avatar", requireAuth, (req, res, next) => {
+    avatarUpload.single("avatar")(req, res, error => {
+        if (error) {
+            const status = error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE"
+                ? 413
+                : 400;
+            return res.status(status).json({ success: false, message: error.message });
+        }
+        next();
+    });
+}, async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: "Choose an image to upload." });
+    }
+
+    const image = await fs.promises.readFile(req.file.path);
+    if (!hasSupportedImageSignature(image, req.file.mimetype)) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({ success: false, message: "The uploaded file is not a supported image." });
+    }
+
+    const previousAvatar = req.user.avatarUrl;
+    req.user.avatarUrl = `/uploads/${req.file.filename}`;
+    if (previousAvatar?.startsWith("/uploads/")) {
+        const previousPath = path.join(UPLOAD_DIR, path.basename(previousAvatar));
+        if (previousPath !== req.file.path) {
+            await fs.promises.unlink(previousPath).catch(() => {});
+        }
+    }
+
+    res.json({ success: true, user: publicUser(req.user) });
+});
+
 app.post("/api/login", (req, res) => {
     const username =
         typeof req.body?.username === "string"
@@ -326,11 +440,42 @@ app.post("/api/login", (req, res) => {
         return matchesUsername || matchesEmail;
     });
 
+    if (user?.role === "user" && user.accountRestricted) {
+        return res.status(423).json({
+            success: false,
+            restricted: true,
+            message: "This account is restricted after repeated failed sign-in attempts. Contact an admin for approval."
+        });
+    }
+
     if (!user || !verifyPassword(password, user.passwordHash)) {
+        if (user?.role === "user") {
+            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+
+            if (user.failedLoginAttempts >= 5) {
+                user.accountRestricted = true;
+                user.accountRestrictedAt = new Date().toISOString();
+
+                for (const [sessionId, session] of sessions.entries()) {
+                    if (session.userId === user.id) sessions.delete(sessionId);
+                }
+
+                return res.status(423).json({
+                    success: false,
+                    restricted: true,
+                    message: "This account is restricted after 5 failed sign-in attempts. An admin must approve access."
+                });
+            }
+        }
+
         return res.status(401).json({
             success: false,
             message: "Invalid username/email or password."
         });
+    }
+
+    if (user.role === "user") {
+        user.failedLoginAttempts = 0;
     }
 
     // Prevent session fixation by replacing an existing session.
@@ -415,6 +560,9 @@ app.post("/api/register", (req, res) => {
         role: "user",
         subscriptionEnd: "Inactive",
         subscriptionPlan: null,
+        failedLoginAttempts: 0,
+        accountRestricted: false,
+        accountRestrictedAt: null,
         resetCode: null
     });
 
@@ -424,16 +572,77 @@ app.post("/api/register", (req, res) => {
     });
 });
 
-app.post("/api/forgot-password", async (req, res) => {
-    const email =
-        typeof req.body?.email === "string"
-            ? normalizeEmail(req.body.email)
-            : "";
+app.post("/api/contact", async (req, res) => {
+    const name = typeof req.body?.name === "string"
+        ? req.body.name.trim().replace(/[\r\n]+/g, " ")
+        : "";
+    const email = typeof req.body?.email === "string"
+        ? normalizeEmail(req.body.email)
+        : "";
+    const message = typeof req.body?.message === "string"
+        ? req.body.message.trim()
+        : "";
+    const honeypot = typeof req.body?.website === "string" ? req.body.website.trim() : "";
 
-    if (!isValidEmail(email)) {
+    if (honeypot) {
+        return res.json({ success: true, message: "Message received." });
+    }
+
+    if (name.length < 2 || name.length > 80 || !isValidEmail(email) || email.length > 254 || message.length < 10 || message.length > 4000) {
         return res.status(400).json({
             success: false,
-            message: "Please enter a valid email address."
+            message: "Enter a name, valid email address, and a message between 10 and 4000 characters."
+        });
+    }
+
+    const recipient = normalizeEmail(process.env.ADMIN_EMAIL || SMTP_EMAIL);
+    if (!smtpConfigured || !isValidEmail(recipient)) {
+        return res.status(503).json({
+            success: false,
+            message: "Contact email is not configured on the server."
+        });
+    }
+
+    const now = Date.now();
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const lastSubmission = recentContactRequests.get(ip) || 0;
+    if (now - lastSubmission < 30_000) {
+        return res.status(429).json({ success: false, message: "Please wait before sending another message." });
+    }
+    recentContactRequests.set(ip, now);
+    if (recentContactRequests.size > 1000) {
+        for (const [key, timestamp] of recentContactRequests) {
+            if (now - timestamp > 30 * 60 * 1000) recentContactRequests.delete(key);
+        }
+    }
+
+    try {
+        await transporter.sendMail({
+            from: SMTP_EMAIL,
+            to: recipient,
+            replyTo: email,
+            subject: "Cloudline contact form message",
+            text: `Name: ${name}\nEmail: ${email}\n\n${message}`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px"><h2>New Cloudline message</h2><p><strong>Name:</strong> ${escapeHtml(name)}</p><p><strong>Email:</strong> ${escapeHtml(email)}</p><p style="white-space:pre-wrap"><strong>Message:</strong><br>${escapeHtml(message)}</p></div>`
+        });
+        return res.json({ success: true, message: "Your message has been sent." });
+    } catch (error) {
+        console.error("Contact email send failed:", error.code || "ERROR", error.message || error);
+        return res.status(502).json({ success: false, message: "The message could not be sent. Please try again later." });
+    }
+});
+
+app.post("/api/forgot-password", async (req, res) => {
+    const identifier = typeof req.body?.identifier === "string"
+        ? req.body.identifier.trim()
+        : typeof req.body?.email === "string"
+            ? req.body.email.trim()
+            : "";
+
+    if (!identifier || identifier.length > 254) {
+        return res.status(400).json({
+            success: false,
+            message: "Enter the username or email address used to create your account."
         });
     }
 
@@ -444,12 +653,19 @@ app.post("/api/forgot-password", async (req, res) => {
         });
     }
 
-    const user = users.find(item => item.email && normalizeEmail(item.email) === email);
+    const user = findUserByIdentifier(identifier);
 
-    if (!user) {
+    if (!user || user.role !== "user") {
         return res.status(404).json({
             success: false,
-            message: "No account was found for this email."
+            message: "No user account was found for that username or email."
+        });
+    }
+
+    if (!user.email || !isValidEmail(user.email)) {
+        return res.status(409).json({
+            success: false,
+            message: "This account has no valid recovery email address."
         });
     }
 
@@ -459,7 +675,7 @@ app.post("/api/forgot-password", async (req, res) => {
     try {
         await transporter.sendMail({
             from: SMTP_EMAIL,
-            to: email,
+            to: user.email,
             subject: "Cloudline Password Reset OTP",
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc;">
@@ -473,8 +689,8 @@ app.post("/api/forgot-password", async (req, res) => {
 
         return res.json({
             success: true,
-            message: "An OTP has been sent to your email.",
-            otp
+            message: "An OTP has been sent to your registered email.",
+            maskedEmail: maskEmailAddress(user.email)
         });
     } catch (error) {
         user.resetCode = null;
@@ -487,9 +703,10 @@ app.post("/api/forgot-password", async (req, res) => {
 });
 
 app.post("/api/reset-password", (req, res) => {
-    const email =
-        typeof req.body?.email === "string"
-            ? normalizeEmail(req.body.email)
+    const identifier = typeof req.body?.identifier === "string"
+        ? req.body.identifier.trim()
+        : typeof req.body?.email === "string"
+            ? req.body.email.trim()
             : "";
 
     const otp =
@@ -502,10 +719,10 @@ app.post("/api/reset-password", (req, res) => {
             ? req.body.newPassword
             : "";
 
-    if (!isValidEmail(email) || !/^\d{6}$/.test(otp)) {
+    if (!identifier || identifier.length > 254 || !/^\d{6}$/.test(otp)) {
         return res.status(400).json({
             success: false,
-            message: "A valid email and 6-digit OTP are required."
+            message: "A valid username or email and 6-digit OTP are required."
         });
     }
 
@@ -516,9 +733,9 @@ app.post("/api/reset-password", (req, res) => {
         });
     }
 
-    const user = users.find(item => item.email && normalizeEmail(item.email) === email);
+    const user = findUserByIdentifier(identifier);
 
-    if (!user) {
+    if (!user || user.role !== "user") {
         return res.status(404).json({
             success: false,
             message: "User not found."
@@ -1130,6 +1347,42 @@ app.get("/api/admin/users", requireAdmin, (req, res) => {
         .map(publicUser);
 
     res.json({ success: true, users: list });
+});
+
+app.get("/api/admin/restricted-users", requireAdmin, (req, res) => {
+    const restrictedUsers = users
+        .filter(user => user.role === "user" && user.accountRestricted)
+        .map(user => ({
+            id: user.id,
+            username: user.username,
+            email: user.email || null,
+            failedLoginAttempts: user.failedLoginAttempts || 0,
+            restrictedAt: user.accountRestrictedAt || null
+        }));
+
+    res.json({ success: true, users: restrictedUsers });
+});
+
+app.post("/api/admin/users/:id/approve-access", requireAdmin, (req, res) => {
+    const user = findUserById(req.params.id);
+
+    if (!user || user.role !== "user") {
+        return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    if (!user.accountRestricted) {
+        return res.status(409).json({ success: false, message: "This account is not restricted." });
+    }
+
+    user.accountRestricted = false;
+    user.failedLoginAttempts = 0;
+    user.accountRestrictedAt = null;
+
+    res.json({
+        success: true,
+        message: `Access restored for ${user.username}. They can sign in with their existing password.`,
+        user: publicUser(user)
+    });
 });
 
 app.post("/api/admin/change-password", requireAdmin, (req, res) => {

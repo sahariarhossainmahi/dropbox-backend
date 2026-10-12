@@ -7,13 +7,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
-    <nav class="bg-white border-b px-8 py-4 flex justify-between items-center shadow-sm">
-        <span class="text-xl font-bold">cloudline <span class="text-gray-400">/ admin</span></span>
-        <div class="flex items-center gap-3">
+    <nav class="bg-white border-b px-5 py-4 shadow-sm sm:px-8">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
+        <a href="/" class="text-xl font-bold">cloudline <span class="text-gray-400">/ admin</span></a>
+        <div class="flex flex-wrap items-center gap-3">
             <button onclick="changeAdminPassword()" type="button" class="px-3 py-2 text-sm font-semibold text-gray-600 hover:text-blue-700">Change password</button>
             <button onclick="logout()" type="button" class="border px-4 py-2 rounded-lg hover:bg-gray-100">Log out</button>
+        </div>
         </div>
     </nav>
     <main class="mx-auto max-w-6xl space-y-8 px-5 py-10 sm:px-8">
@@ -37,6 +40,38 @@
                     <tbody id="paymentRequestTable"></tbody>
                 </table>
             </div>
+        </section>
+
+        <section class="overflow-hidden rounded-xl border border-rose-200 bg-white shadow-sm">
+            <div class="border-b border-rose-100 px-6 py-5">
+                <h2 class="text-2xl font-bold">Restricted accounts</h2>
+                <p class="mt-1 text-sm text-gray-500">Review accounts locked after five incorrect password attempts.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[760px] text-left">
+                    <thead class="bg-rose-50 text-sm text-gray-600">
+                        <tr>
+                            <th class="px-4 py-3">User</th>
+                            <th class="px-4 py-3">Registered email</th>
+                            <th class="px-4 py-3">Failed attempts</th>
+                            <th class="px-4 py-3">Restricted at</th>
+                            <th class="px-4 py-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="restrictedUserTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section aria-label="User analytics" class="grid gap-5 lg:grid-cols-2">
+            <article class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="mb-5"><p class="text-xs font-bold uppercase tracking-widest text-blue-700">Current accounts</p><h2 class="mt-2 text-xl font-bold">User distribution by plan</h2></div>
+                <div class="relative h-64"><canvas id="planDistributionChart" aria-label="Pie chart showing users by subscription plan" role="img"></canvas></div>
+            </article>
+            <article class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div class="mb-5"><p class="text-xs font-bold uppercase tracking-widest text-emerald-700">Demo data</p><h2 class="mt-2 text-xl font-bold">New registrations · last 7 days</h2></div>
+                <div class="relative h-64"><canvas id="registrationChart" aria-label="Bar chart showing demo registrations over seven days" role="img"></canvas></div>
+            </article>
         </section>
 
         <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -63,6 +98,45 @@
     <script>
         const userTable = document.getElementById('userTable');
         const paymentRequestTable = document.getElementById('paymentRequestTable');
+        const restrictedUserTable = document.getElementById('restrictedUserTable');
+        let planDistributionChart = null;
+        let registrationChart = null;
+
+        function renderAnalytics(users) {
+            if (!window.Chart) return;
+            const planLabels = ['Basic', 'Gold', 'Platinum', 'Diamond', 'No plan'];
+            const planCounts = ['basic', 'gold', 'platinum', 'diamond'].map(plan =>
+                users.filter(user => user.subscriptionPlan === plan).length
+            );
+            planCounts.push(users.filter(user => !user.subscriptionPlan).length);
+
+            if (planDistributionChart) {
+                planDistributionChart.data.datasets[0].data = planCounts;
+                planDistributionChart.update();
+            } else {
+                planDistributionChart = new Chart(document.getElementById('planDistributionChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: planLabels,
+                        datasets: [{ data: planCounts, backgroundColor: ['#2563eb', '#d97706', '#64748b', '#0f766e', '#cbd5e1'], borderColor: '#ffffff', borderWidth: 3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+
+            if (!registrationChart) {
+                const labels = Array.from({ length: 7 }, (_, index) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (6 - index));
+                    return date.toLocaleDateString(undefined, { weekday: 'short' });
+                });
+                registrationChart = new Chart(document.getElementById('registrationChart'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Demo registrations', data: [4, 8, 5, 10, 7, 12, 9], backgroundColor: '#0f766e', borderRadius: 5, maxBarThickness: 34 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { display: false } } }
+                });
+            }
+        }
 
         async function requestJson(url, options = {}) {
             const response = await fetch(url, {
@@ -95,6 +169,7 @@
             try {
                 const data = await requestJson('/api/admin/users');
                 userTable.replaceChildren();
+                renderAnalytics(data.users);
 
                 data.users.forEach(user => {
                     const row = document.createElement('tr');
@@ -158,6 +233,55 @@
                     return;
                 }
                 await Swal.fire('Could not load users', error.message, 'error');
+            }
+        }
+
+        async function loadRestrictedUsers() {
+            try {
+                const data = await requestJson('/api/admin/restricted-users');
+                restrictedUserTable.replaceChildren();
+
+                if (!data.users.length) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 5;
+                    cell.className = 'px-4 py-8 text-center text-sm text-gray-500';
+                    cell.textContent = 'No restricted accounts.';
+                    row.append(cell);
+                    restrictedUserTable.append(row);
+                    return;
+                }
+
+                data.users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-t border-gray-100';
+                    const values = [
+                        user.username,
+                        user.email || 'No email on account',
+                        String(user.failedLoginAttempts),
+                        user.restrictedAt ? new Date(user.restrictedAt).toLocaleString() : 'Unknown'
+                    ];
+
+                    values.forEach((value, index) => {
+                        const cell = document.createElement('td');
+                        cell.className = 'px-4 py-4 text-sm';
+                        cell.textContent = value;
+                        if (index === 0) cell.classList.add('font-semibold');
+                        row.append(cell);
+                    });
+
+                    const actionCell = document.createElement('td');
+                    actionCell.className = 'px-4 py-4';
+                    const actions = document.createElement('div');
+                    actions.className = 'flex flex-wrap gap-2';
+                    addAction(actions, 'Approve access', 'bg-green-600', () => approveRestrictedUser(user.id));
+                    addAction(actions, 'Delete account', 'bg-red-600', () => deleteUser(user.id));
+                    actionCell.append(actions);
+                    row.append(actionCell);
+                    restrictedUserTable.append(row);
+                });
+            } catch (error) {
+                await Swal.fire('Could not load restricted accounts', error.message, 'error');
             }
         }
 
@@ -288,6 +412,27 @@
             }
         }
 
+        async function approveRestrictedUser(userId) {
+            const confirmation = await Swal.fire({
+                title: 'Restore this account?',
+                text: 'The user will be able to sign in again with their existing password.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Approve access',
+                confirmButtonColor: '#16a34a'
+            });
+
+            if (!confirmation.isConfirmed) return;
+
+            try {
+                const data = await requestJson(`/api/admin/users/${userId}/approve-access`, { method: 'POST' });
+                await Swal.fire('Access restored', data.message, 'success');
+                await Promise.all([loadRestrictedUsers(), loadUsers()]);
+            } catch (error) {
+                await Swal.fire('Could not restore access', error.message, 'error');
+            }
+        }
+
         async function deleteUser(userId) {
             const confirmation = await Swal.fire({
                 title: 'Delete this user?',
@@ -303,7 +448,7 @@
             try {
                 const data = await requestJson(`/api/admin/users/${userId}`, { method: 'DELETE' });
                 await Swal.fire('User deleted', data.message, 'success');
-                await loadUsers();
+                await Promise.all([loadUsers(), loadRestrictedUsers()]);
             } catch (error) {
                 await Swal.fire('Action failed', error.message, 'error');
             }
@@ -373,7 +518,7 @@
                     window.location.href = '/index.html';
                     return;
                 }
-                await Promise.all([loadUsers(), loadPaymentRequests()]);
+                await Promise.all([loadUsers(), loadPaymentRequests(), loadRestrictedUsers()]);
             } catch {
                 window.location.href = '/index.html';
             }

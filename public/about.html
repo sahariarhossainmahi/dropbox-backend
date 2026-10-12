@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About | Cloudline</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body{font-family:'Manrope',sans-serif}.grid-paper{background-image:linear-gradient(rgba(23,105,224,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(23,105,224,.055) 1px,transparent 1px);background-size:32px 32px}</style>
+</head>
+<body class="min-h-screen bg-[#f6f9fc] text-slate-900 antialiased">
+    <header class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5 lg:px-10">
+        <a href="/" class="flex items-center gap-3" aria-label="Cloudline home"><span class="grid h-10 w-10 place-items-center rounded-xl bg-[#1769e0] text-xl font-extrabold text-white">C</span><span class="text-lg font-extrabold">Cloudline <span class="font-medium text-slate-400">/ about</span></span></a>
+        <nav data-member-navigation aria-label="Member navigation" class="hidden flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-slate-600"><a href="/" class="hover:text-blue-700">Home</a><a href="/about.html" class="text-blue-700">About</a><a href="/blog.html" class="hover:text-blue-700">Blog</a><a href="/contact.html" class="hover:text-blue-700">Contact Us</a></nav>
+    </header>
+    <main class="mx-auto max-w-7xl px-6 pb-16 pt-6 lg:px-10">
+        <section class="grid-paper relative overflow-hidden rounded-xl border border-blue-100 bg-white px-7 py-12 shadow-sm sm:px-12 sm:py-16">
+            <div class="relative z-10 max-w-3xl">
+                <p class="text-xs font-extrabold uppercase tracking-[0.18em] text-blue-700">About Cloudline</p>
+                <h1 class="mt-4 text-4xl font-extrabold leading-tight sm:text-6xl">A calmer place for your digital life.</h1>
+                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-600">Cloudline is a demo cloud-storage experience built around a simple idea: your work should stay organized, reachable, and under your control.</p>
+                <a href="/index.html#sign-in" class="mt-8 inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-900/10 transition hover:bg-blue-800">Explore the workspace <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="mt-10 grid gap-4 sm:grid-cols-3">
+                <article class="rounded-lg border border-slate-200 bg-white/85 p-5"><p class="text-3xl font-extrabold text-blue-700">01</p><h2 class="mt-3 font-bold">Thoughtful storage</h2><p class="mt-2 text-sm leading-6 text-slate-600">Keep projects and everyday files in one clear workspace.</p></article>
+                <article class="rounded-lg border border-slate-200 bg-white/85 p-5"><p class="text-3xl font-extrabold text-emerald-700">02</p><h2 class="mt-3 font-bold">Simple controls</h2><p class="mt-2 text-sm leading-6 text-slate-600">Manage your account, plan, and profile without the clutter.</p></article>
+                <article class="rounded-lg border border-slate-200 bg-white/85 p-5"><p class="text-3xl font-extrabold text-amber-700">03</p><h2 class="mt-3 font-bold">Built as a demo</h2><p class="mt-2 text-sm leading-6 text-slate-600">Cloudline is a project demonstration, not an official Dropbox service.</p></article>
+            </div>
+        </section>
+    </main>
+    <footer class="border-t border-slate-200 px-6 py-6 text-center text-sm text-slate-500">Cloudline Demo · Your files, thoughtfully organized</footer>
+    <script src="/member-nav.js" defer></script>
+</body>
+</html>

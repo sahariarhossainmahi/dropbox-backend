@@ -36,7 +36,7 @@
 
 <body class="min-h-screen bg-[#f6f9fc] text-[#102b4e] antialiased">
 
-<header class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
+<header class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-5 lg:px-10">
     <a href="/" class="flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#1769e0] text-white font-bold text-xl">C</span>
         <span class="text-lg font-extrabold tracking-tight">
@@ -44,9 +44,6 @@
         </span>
     </a>
 
-    <span class="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
-        1TB Yearly Plan
-    </span>
 </header>
 
 <main class="mx-auto max-w-7xl px-6 pb-16 pt-5 lg:px-10">
@@ -318,11 +315,14 @@
 
         const emailResult = await Swal.fire({
             title: "Forgot Password",
-            text: "Enter your email address to receive the OTP.",
-            input: "email",
-            inputLabel: "Email address",
-            inputPlaceholder: "you@example.com",
+            text: "Enter the username or email address you used to create your account.",
+            input: "text",
+            inputLabel: "Username or email",
+            inputPlaceholder: "Username or you@example.com",
+            inputValue: usernameInput.value.trim(),
             showCancelButton: true,
+            showLoaderOnConfirm: true,
+            allowOutsideClick: () => !Swal.isLoading(),
             confirmButtonText: "Send OTP",
             confirmButtonColor: "#1769e0",
             background: "#ffffff",
@@ -331,13 +331,36 @@
                 confirmButton: "rounded-xl",
                 cancelButton: "rounded-xl"
             },
-            preConfirm: (value) => {
-                const email = (value || "").trim();
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    Swal.showValidationMessage("Please enter a valid email address.");
+            preConfirm: async (value) => {
+                const identifier = (value || "").trim();
+                if (!identifier || identifier.length > 254) {
+                    Swal.showValidationMessage("Enter the username or email address used for this account.");
                     return false;
                 }
-                return email;
+
+                try {
+                    const response = await fetch("/api/forgot-password", {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ identifier })
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.message || "Unable to send OTP.");
+                    }
+
+                    return {
+                        identifier,
+                        maskedEmail: data.maskedEmail || "your registered email"
+                    };
+                } catch (error) {
+                    Swal.showValidationMessage(error.message || "Unable to send OTP.");
+                    return false;
+                }
             }
         });
 
@@ -346,24 +369,10 @@
         }
 
         try {
-            const forgotResponse = await fetch("/api/forgot-password", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ email: emailResult.value })
-            });
-
-            const forgotData = await forgotResponse.json().catch(() => ({}));
-
-            if (!forgotResponse.ok || !forgotData.success) {
-                throw new Error(forgotData.message || "Unable to send OTP.");
-            }
-
+            const { identifier, maskedEmail } = emailResult.value;
             const otpResult = await Swal.fire({
                 title: "Verify OTP",
-                html: `We sent a 6-digit verification code to <strong>${emailResult.value}</strong>.<br><br>Use the code below to reset your password.`,
+                text: `We sent a 6-digit verification code to ${maskedEmail}. Use the code below to reset your password.`,
                 input: "text",
                 inputLabel: "6-Digit OTP",
                 inputPlaceholder: "123456",
@@ -425,7 +434,7 @@
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    email: emailResult.value,
+                    identifier,
                     otp: otpResult.value,
                     newPassword: passwordResult.value
                 })

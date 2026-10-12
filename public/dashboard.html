@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Cloudline</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script>window.tailwind = window.tailwind || {}; tailwind.config = { darkMode: 'class' }; try { if (localStorage.getItem('cloudline.theme') === 'dark') document.documentElement.classList.add('dark'); } catch {}</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -43,6 +44,32 @@
             --plan-hero: linear-gradient(110deg, rgba(15, 23, 42, .94), rgba(15, 118, 110, .82), rgba(20, 83, 75, .52));
             --plan-hero-text: #ccfbf1;
         }
+
+        html.dark { color-scheme: dark; }
+        html.dark body { background: #0b1220; color: #e2e8f0; }
+        html:not(.dark) body { background-color: #ffffff; }
+        html.dark nav, html.dark .surface-card { background-color: #111c2d; border-color: #29384c; }
+        html.dark nav :is(a,button) { color: #cbd5e1; }
+        html.dark nav :is(a,button):hover { color: #ffffff; }
+        html.dark .subscription-card { background: linear-gradient(145deg, #142236, #111c2d 62%); }
+        html.dark .surface-card :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700) { color: #e2e8f0; }
+        html.dark .surface-card :is(.text-slate-600,.text-slate-500) { color: #a8b7ca; }
+        html.dark .surface-card :is(.bg-slate-50,.bg-slate-100,.bg-white) { background-color: #172438; }
+        html.dark .surface-card :is(.border-slate-200,.border-gray-200) { border-color: #34445a; }
+        html.dark #planPicker { border-color: #29384c; }
+        html.dark #planPicker > div :is(.text-slate-950,.text-slate-600,.text-slate-500) { color: #e2e8f0; }
+        html.dark #planPicker article { background-image: none; background-color: #111c2d; border-color: #34445a; color: #e2e8f0; }
+        html.dark #planPicker article :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600) { color: #e2e8f0; }
+        html.dark #planPicker article :is(.text-slate-500,.text-slate-300) { color: #a8b7ca; }
+        html.dark #planPicker article :is(.bg-white,.bg-slate-100) { background-color: #172438; }
+        html.dark #paymentStatus.bg-amber-50 { background-color: #3b2b13; color: #fcd34d; }
+        html.dark #paymentStatus.bg-green-50 { background-color: #123126; color: #86efac; }
+        html.dark .chat-panel { background: #111c2d; border-color: #34445a; color: #e2e8f0; }
+        html.dark .chat-messages { background: #0b1220; }
+        html.dark .chat-panel input { background: #172438; border-color: #475569; color: #f8fafc; }
+        html.dark .chat-panel input::placeholder { color: #94a3b8; }
+        html.dark .chat-panel .chat-messages p:not(.bg-blue-700) { background: #1b2a3e; color: #e2e8f0; }
+        .chat-messages { scrollbar-width: thin; }
 
         .plan-accent { background-color: var(--plan-accent) !important; }
         .plan-accent:hover { background-color: var(--plan-accent-hover) !important; }
@@ -107,27 +134,33 @@
         }
     </style>
 </head>
-<body data-plan="basic" class="min-h-screen bg-gray-50 text-slate-900 antialiased">
-    <nav class="border-b border-gray-200 bg-white">
-        <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
+<body data-plan="basic" class="min-h-screen bg-gray-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <nav class="border-b border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
             <a href="/dashboard.html" class="flex items-center gap-3" aria-label="Cloudline home">
                 <span class="plan-accent grid h-10 w-10 place-items-center rounded-xl text-xl font-extrabold text-white">C</span>
                 <span class="text-lg font-extrabold tracking-tight">Cloudline</span>
             </a>
-            <div class="flex items-center gap-3 sm:gap-4">
-                <label class="group relative block cursor-pointer" title="Change profile picture">
-                    <input id="avatarFile" type="file" accept="image/*" class="sr-only">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div aria-label="Main navigation" class="order-3 flex w-full flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-slate-600 dark:text-slate-300 sm:order-none sm:w-auto">
+                    <a href="/" class="hover:text-blue-700">Home</a><a href="/about.html" class="hover:text-blue-700">About</a><a href="/blog.html" class="hover:text-blue-700">Blog</a><a href="/contact.html" class="hover:text-blue-700">Contact Us</a>
+                </div>
+                <button id="themeToggle" type="button" class="grid h-10 w-10 place-items-center rounded-lg text-slate-600 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" aria-label="Switch color theme" title="Switch color theme">
+                    <svg class="h-5 w-5 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+                    <svg class="hidden h-5 w-5 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.1 15.2A8.3 8.3 0 0 1 8.8 3.9 8.5 8.5 0 1 0 20.1 15.2Z"/></svg>
+                </button>
+                <button id="profileSettingsButton" type="button" class="group relative block cursor-pointer rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" title="Profile settings" aria-label="Open profile settings">
                     <span class="plan-tint plan-accent-text plan-ring grid h-11 w-11 place-items-center overflow-hidden rounded-full text-sm font-bold">
                         <span id="avatarInitials" class="col-start-1 row-start-1">U</span>
                         <img id="userAvatar" alt="Your profile picture" class="col-start-1 row-start-1 hidden h-full w-full object-cover">
                     </span>
-                    <span class="absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true">
+                    <span class="absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true">
                         <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 8.25A2.25 2.25 0 0 1 6.75 6h1.19c.6 0 1.16-.24 1.59-.66l.44-.43A2.25 2.25 0 0 1 11.56 4.25h.88c.6 0 1.17.24 1.59.66l.44.43c.42.42.99.66 1.59.66h1.19A2.25 2.25 0 0 1 19.5 8.25v9A2.25 2.25 0 0 1 17.25 19.5h-10.5A2.25 2.25 0 0 1 4.5 17.25v-9Z" />
                             <circle cx="12" cy="12.5" r="3.25" />
                         </svg>
                     </span>
-                </label>
+                </button>
                 <button onclick="logout()" type="button" class="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-gray-100 hover:text-slate-900">Log out</button>
             </div>
         </div>
@@ -149,11 +182,11 @@
         </header>
 
         <section class="grid gap-5 lg:grid-cols-2" aria-label="Account overview">
-            <article class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+            <article class="surface-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7 dark:border-slate-700 dark:bg-slate-900">
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <p class="text-sm font-semibold text-slate-500">Storage overview</p>
-                        <h2 class="mt-2 text-2xl font-extrabold">245 GB <span class="text-base font-medium text-slate-500">of 1 TB used</span></h2>
+                        <h2 class="mt-2 text-2xl font-extrabold"><span id="storageUsed">245 GB</span> <span class="text-base font-medium text-slate-500">of 1 TB used</span></h2>
                     </div>
                     <span class="plan-tint plan-accent-text grid h-11 w-11 shrink-0 place-items-center rounded-xl" aria-hidden="true">
                         <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -163,17 +196,18 @@
                     </span>
                 </div>
                 <div class="mt-7">
-                    <div class="h-3 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="24.5">
-                        <div class="plan-accent h-full w-[24.5%] rounded-full"></div>
+                    <div id="storageProgress" class="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="24.5">
+                        <div id="storageProgressFill" class="plan-accent h-full rounded-full transition-[width] duration-700 ease-out" style="width:24.5%"></div>
                     </div>
                     <div class="mt-3 flex items-center justify-between text-sm">
-                        <span class="plan-accent-text font-semibold">24.5% used</span>
-                        <span class="text-slate-500">755 GB available</span>
+                        <span id="storagePercent" class="plan-accent-text font-semibold">24.5% used</span>
+                        <span id="storageAvailable" class="text-slate-500">755 GB available</span>
                     </div>
+                    <button id="simulateUploadButton" type="button" class="plan-accent mt-5 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M12 16V4m0 0L7 9m5-5 5 5M5 15v4h14v-4"/></svg>Upload file</button>
                 </div>
             </article>
 
-            <article id="subscriptionCard" class="subscription-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+            <article id="subscriptionCard" class="surface-card subscription-card rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
                 <p class="text-sm font-semibold text-slate-500">Your subscription</p>
                 <div class="mt-2 flex flex-wrap items-center gap-3">
                     <h2 id="subscriptionPlanName" class="plan-accent-text text-2xl font-extrabold">1 TB Yearly Plan</h2>
@@ -206,7 +240,7 @@
                 </div>
                 <span class="text-sm text-slate-500">4 items</span>
             </div>
-            <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="surface-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <ul class="divide-y divide-gray-100">
                     <li class="flex items-center gap-4 px-5 py-4 sm:px-6">
                         <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-rose-50 text-rose-600" aria-hidden="true">
@@ -272,7 +306,7 @@
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>Basic File Sharing</li>
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>30-Day File Recovery</li>
                         </ul>
-                        <button type="button" data-plan="basic" class="choose-plan-button w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:border-slate-500 hover:bg-slate-50">Choose Basic</button>
+                        <button type="button" data-plan="basic" class="choose-plan-button w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:border-slate-500 hover:bg-slate-50">Upgrade to Basic</button>
                     </article>
 
                     <article class="group relative flex flex-col rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50/80 p-5 shadow-xl backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl sm:p-6">
@@ -288,7 +322,7 @@
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>Advanced Sharing (Passwords)</li>
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>90-Day File Recovery</li>
                         </ul>
-                        <button type="button" data-plan="gold" class="choose-plan-button w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm font-bold text-amber-900 transition hover:bg-amber-100">Choose Gold</button>
+                        <button type="button" data-plan="gold" class="choose-plan-button w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm font-bold text-amber-900 transition hover:bg-amber-100">Upgrade to Gold</button>
                     </article>
 
                     <article class="group relative z-10 flex flex-col rounded-2xl border-2 border-blue-400 bg-gradient-to-br from-white via-blue-50 to-indigo-50 p-5 shadow-2xl ring-4 ring-blue-100/70 transition-all duration-300 hover:-translate-y-2 sm:scale-[1.03] sm:p-6">
@@ -305,7 +339,7 @@
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-[#1769e0]" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>Smart Sync Technology</li>
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-[#1769e0]" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>180-Day File Recovery</li>
                         </ul>
-                        <button type="button" data-plan="platinum" class="choose-plan-button w-full rounded-xl bg-gradient-to-r from-[#1769e0] to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:from-[#0e56bf] hover:to-indigo-700">Choose Platinum</button>
+                        <button type="button" data-plan="platinum" class="choose-plan-button w-full rounded-xl bg-gradient-to-r from-[#1769e0] to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:from-[#0e56bf] hover:to-indigo-700">Upgrade to Platinum</button>
                     </article>
 
                     <article class="group relative flex flex-col rounded-2xl border border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-5 text-white shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl sm:p-6">
@@ -321,7 +355,7 @@
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>Advanced Admin Controls</li>
                             <li class="flex gap-2.5"><svg viewBox="0 0 20 20" class="mt-0.5 h-5 w-5 shrink-0 text-cyan-300" fill="currentColor"><path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.07 7.13a1 1 0 0 1-1.42 0l-3.53-3.56A1 1 0 0 1 6.11 8.86l2.82 2.84 6.36-6.41a1 1 0 0 1 1.414 0Z" clip-rule="evenodd"/></svg>365-Day Recovery &amp; Ransomware Protection</li>
                         </ul>
-                        <button type="button" data-plan="diamond" class="choose-plan-button w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20">Choose Diamond</button>
+                        <button type="button" data-plan="diamond" class="choose-plan-button w-full rounded-xl border border-white/30 bg-white/10 px-4 py-3 text-sm font-bold text-white backdrop-blur transition hover:bg-white/20">Upgrade to Diamond</button>
                     </article>
                 </div>
             </div>
@@ -329,17 +363,122 @@
         </section>
     </main>
 
+    <aside id="chatPanel" class="chat-panel fixed bottom-24 right-5 z-40 hidden w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl" aria-label="Cloudline AI Assistant" aria-hidden="true">
+        <div class="flex items-center justify-between bg-slate-950 px-4 py-3 text-white">
+            <div><p class="font-bold">Cloudline AI Assistant</p><p class="text-xs text-slate-300">Demo assistant · instant replies</p></div>
+            <button id="chatClose" type="button" class="grid h-8 w-8 place-items-center rounded-lg text-xl hover:bg-white/10" aria-label="Close chat">×</button>
+        </div>
+        <div id="chatMessages" class="chat-messages flex h-72 flex-col gap-3 overflow-y-auto bg-slate-50 p-4" role="log" aria-live="polite">
+            <p class="max-w-[85%] self-start rounded-lg bg-white px-3 py-2 text-sm shadow-sm">Hi! I’m the Cloudline demo assistant. What can I help with?</p>
+        </div>
+        <form id="chatForm" class="flex gap-2 border-t border-slate-200 p-3">
+            <input id="chatInput" type="text" maxlength="500" required placeholder="Ask a question…" class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-600">
+            <button type="submit" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-700 text-white hover:bg-blue-800" aria-label="Send message"><svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m21 3-7.5 18-3.75-7.5L2.25 9.75 21 3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3 9.75 13.5"/></svg></button>
+        </form>
+    </aside>
+    <button id="chatToggle" type="button" class="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-blue-700 text-white shadow-xl shadow-blue-950/20 transition hover:-translate-y-1 hover:bg-blue-800" aria-label="Open Cloudline AI Assistant" aria-controls="chatPanel" aria-expanded="false"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 18.75 3.75 21v-5.25a8.25 8.25 0 1 1 3.75 3Z"/><path stroke-linecap="round" d="M8.25 10.5h7.5m-7.5 3h4.5"/></svg></button>
+
     <script>
         let currentUserId = null;
+        let usedStorageGB = 245;
 
-        function displayAvatar(username, userId) {
+        function updateStorageMeter() {
+            const percent = usedStorageGB / 10;
+            document.getElementById('storageUsed').textContent = `${usedStorageGB} GB`;
+            document.getElementById('storagePercent').textContent = `${percent.toFixed(1)}% used`;
+            document.getElementById('storageAvailable').textContent = `${1000 - usedStorageGB} GB available`;
+            document.getElementById('storageProgressFill').style.width = `${percent}%`;
+            document.getElementById('storageProgress').setAttribute('aria-valuenow', percent.toFixed(1));
+            document.getElementById('simulateUploadButton').disabled = usedStorageGB >= 1000;
+        }
+
+        function applyThemePreference() {
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeToggle').setAttribute('aria-label', `Switch to ${isDark ? 'light' : 'dark'} mode`);
+        }
+
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            try {
+                localStorage.setItem('cloudline.theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            } catch {}
+            applyThemePreference();
+        });
+        applyThemePreference();
+        document.getElementById('simulateUploadButton').addEventListener('click', async () => {
+            if (usedStorageGB >= 1000) return;
+            usedStorageGB = Math.min(1000, usedStorageGB + 25);
+            updateStorageMeter();
+            await Swal.fire({ title: 'Demo upload complete', text: 'Storage usage increased by 25 GB for this session.', icon: 'success', confirmButtonColor: '#1769e0' });
+        });
+
+        const chatPanel = document.getElementById('chatPanel');
+        const chatToggle = document.getElementById('chatToggle');
+        const chatMessages = document.getElementById('chatMessages');
+
+        function setChatOpen(open) {
+            chatPanel.classList.toggle('hidden', !open);
+            chatPanel.setAttribute('aria-hidden', String(!open));
+            chatToggle.setAttribute('aria-expanded', String(open));
+            if (open) document.getElementById('chatInput').focus();
+        }
+
+        function appendChatMessage(message, fromUser) {
+            const item = document.createElement('p');
+            item.textContent = message;
+            item.className = fromUser
+                ? 'max-w-[85%] self-end rounded-lg bg-blue-700 px-3 py-2 text-sm text-white'
+                : 'max-w-[85%] self-start rounded-lg bg-white px-3 py-2 text-sm shadow-sm';
+            chatMessages.append(item);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function getAssistantReply(message) {
+            const question = message.toLowerCase();
+            if (/price|pricing|plan|upgrade|৳|taka|payment|pay|bkash|b-kash|amr|card/.test(question)) {
+                return 'Cloudline has four yearly demo plans: Basic ৳500, Gold ৳1,000, Platinum ৳1,500, and Diamond ৳2,000. The payment screen is only a simulation; to activate a plan, submit a bKash or AMR payment for admin review.';
+            }
+            if (/storage|space|file|upload|gb|tb/.test(question)) {
+                return 'This demo dashboard shows a 1 TB storage meter and sample recent files. The Upload file button only adds 25 GB to the visual demo meter; it does not upload cloud files.';
+            }
+            if (/avatar|photo|picture|profile/.test(question)) {
+                return 'Open the profile picture button in the dashboard header, choose a JPEG, PNG, WebP, or GIF up to 5 MB, then save it.';
+            }
+            if (/dark|light|theme|color/.test(question)) {
+                return 'Use the sun or moon button in the dashboard header to switch themes. Your preference is saved in this browser.';
+            }
+            if (/contact|support|email|message/.test(question)) {
+                return 'Use Contact Us in the navigation to send a message to the Cloudline administrator. Please do not include passwords, payment PINs, or OTPs.';
+            }
+            if (/blog|article|journal/.test(question)) {
+                return 'The Cloudline Journal has demo articles about cloud infrastructure, safer file sharing, and organizing digital files. Open Blog from the navigation to read them.';
+            }
+            if (/about|cloudline|website|site|what do you/.test(question)) {
+                return 'Cloudline is a Dropbox-inspired demo for account management, sample cloud storage, yearly plans, and payment review. It is a project demo and is not an official Dropbox service.';
+            }
+            return 'I can explain Cloudline plans, the demo storage meter, profile settings, themes, payments, and the About, Blog, or Contact pages. What would you like to know?';
+        }
+
+        chatToggle.addEventListener('click', () => setChatOpen(chatPanel.classList.contains('hidden')));
+        document.getElementById('chatClose').addEventListener('click', () => setChatOpen(false));
+        document.getElementById('chatForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+            appendChatMessage(message, true);
+            input.value = '';
+            window.setTimeout(() => appendChatMessage(getAssistantReply(message), false), 1000);
+        });
+
+        function displayAvatar(username, userId, avatarUrl) {
             currentUserId = userId;
             const initials = document.getElementById('avatarInitials');
             const avatar = document.getElementById('userAvatar');
             initials.textContent = username.charAt(0).toUpperCase();
 
             try {
-                const savedPhoto = localStorage.getItem(`cloudline.avatar.${userId}`);
+                const savedPhoto = avatarUrl || localStorage.getItem(`cloudline.avatar.${userId}`);
                 if (savedPhoto) {
                     avatar.src = savedPhoto;
                     avatar.classList.remove('hidden');
@@ -412,6 +551,64 @@
             }
         }
 
+        async function openProfileSettings() {
+            const result = await Swal.fire({
+                title: 'Profile settings',
+                html: `
+                    <div class="text-left">
+                        <p class="mb-4 text-sm text-slate-600">Choose a square profile image up to 5 MB.</p>
+                        <input id="profileAvatarUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="block w-full text-sm">
+                        <p id="profileAvatarPreview" class="mt-3 hidden text-sm font-semibold text-emerald-700">Image selected</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Save photo',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#1769e0',
+                showLoaderOnConfirm: true,
+                allowOutsideClick: () => !Swal.isLoading(),
+                didOpen: () => {
+                    document.getElementById('profileAvatarUpload').addEventListener('change', (event) => {
+                        document.getElementById('profileAvatarPreview').classList.toggle('hidden', !event.target.files?.[0]);
+                    });
+                },
+                preConfirm: async () => {
+                    const file = document.getElementById('profileAvatarUpload').files?.[0];
+                    if (!file) {
+                        Swal.showValidationMessage('Choose an image first.');
+                        return false;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                        Swal.showValidationMessage('Choose an image smaller than 5 MB.');
+                        return false;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('avatar', file);
+                    try {
+                        const response = await fetch('/api/upload-avatar', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            body: formData
+                        });
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok || !data.success) throw new Error(data.message || 'Could not upload the image.');
+                        return data.user.avatarUrl;
+                    } catch (error) {
+                        Swal.showValidationMessage(error.message || 'Could not upload the image.');
+                        return false;
+                    }
+                }
+            });
+
+            if (result.isConfirmed && result.value) {
+                const avatar = document.getElementById('userAvatar');
+                avatar.src = `${result.value}?v=${Date.now()}`;
+                avatar.classList.remove('hidden');
+                document.getElementById('avatarInitials').classList.add('hidden');
+            }
+        }
+
         async function loadDashboard() {
             try {
                 const response = await fetch('/api/me', { credentials: 'same-origin' });
@@ -423,7 +620,7 @@
                 }
 
                 document.getElementById('userName').textContent = data.user.username;
-                displayAvatar(data.user.username, data.user.id);
+                displayAvatar(data.user.username, data.user.id, data.user.avatarUrl);
                 const planName = data.user.subscriptionPlan
                     ? data.user.subscriptionPlan.charAt(0).toUpperCase() + data.user.subscriptionPlan.slice(1)
                     : null;
@@ -499,6 +696,60 @@
         };
 
         const planPicker = document.getElementById('planPicker');
+
+        async function simulateGatewayPayment(planId) {
+            const selectedPlan = subscriptionPlans[planId];
+            if (!selectedPlan) return;
+
+            const payment = await Swal.fire({
+                title: `Upgrade to ${selectedPlan.name}`,
+                html: `
+                    <div class="text-left">
+                        <p class="mb-4 text-sm text-slate-600">৳${selectedPlan.amount}/year · Demo gateway only. Do not enter real card or account details.</p>
+                        <label for="demo-payment-method" class="mb-1 block text-sm font-semibold">Payment method</label>
+                        <select id="demo-payment-method" class="swal2-input !m-0 !mb-4 !w-full"><option value="card">Demo card</option><option value="mobile">Mobile banking</option></select>
+                        <label for="demo-payment-reference" class="mb-1 block text-sm font-semibold">Demo reference</label>
+                        <input id="demo-payment-reference" class="swal2-input !m-0 !w-full" maxlength="30" placeholder="DEMO-123456" autocomplete="off">
+                        <p class="mt-3 text-xs text-slate-500">This simulation does not charge you or activate a plan.</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Simulate payment',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#1769e0',
+                preConfirm: () => {
+                    const reference = document.getElementById('demo-payment-reference').value.trim();
+                    if (!/^[a-zA-Z0-9_-]{4,30}$/.test(reference)) {
+                        Swal.showValidationMessage('Enter a 4-30 character demo reference.');
+                        return false;
+                    }
+                    return document.getElementById('demo-payment-method').value;
+                }
+            });
+
+            if (!payment.isConfirmed) return;
+            await Swal.fire({
+                title: 'Processing demo payment',
+                html: '<p class="text-sm text-slate-500">Connecting to the simulated gateway…</p>',
+                timer: 1000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const result = await Swal.fire({
+                title: 'Demo payment complete',
+                text: 'No money was charged and your subscription has not changed. Continue to submit a real bKash or AMR payment for admin review.',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'Continue to payment setup',
+                cancelButtonText: 'Done',
+                confirmButtonColor: '#1769e0'
+            });
+            if (result.isConfirmed) await renewSubscription(planId);
+        }
 
         async function renewSubscription(planId) {
             if (!planId) {
@@ -629,9 +880,9 @@
             }
         }
 
-        document.getElementById('avatarFile').addEventListener('change', saveAvatar);
+        document.getElementById('profileSettingsButton').addEventListener('click', openProfileSettings);
         document.querySelectorAll('.choose-plan-button').forEach(button => {
-            button.addEventListener('click', () => renewSubscription(button.dataset.plan));
+            button.addEventListener('click', () => simulateGatewayPayment(button.dataset.plan));
         });
         loadDashboard();
     </script>
