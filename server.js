@@ -437,6 +437,13 @@ app.post("/api/forgot-password", async (req, res) => {
         });
     }
 
+    if (!smtpConfigured) {
+        return res.status(503).json({
+            success: false,
+            message: "Email service is not configured. Set SMTP_EMAIL and SMTP_APP_PASSWORD in the deployment environment."
+        });
+    }
+
     const user = users.find(item => item.email && normalizeEmail(item.email) === email);
 
     if (!user) {
@@ -1175,6 +1182,34 @@ app.post("/api/admin/change-password", requireAdmin, (req, res) => {
         success: true,
         message: "Admin password changed successfully."
     });
+});
+
+app.get("/api/admin/email-status", requireAdmin, async (req, res) => {
+    if (!smtpConfigured) {
+        return res.status(503).json({
+            success: false,
+            configured: false,
+            connected: false,
+            message: "Set SMTP_EMAIL and SMTP_APP_PASSWORD in the deployment environment."
+        });
+    }
+
+    try {
+        await transporter.verify();
+        return res.json({
+            success: true,
+            configured: true,
+            connected: true
+        });
+    } catch (error) {
+        console.error("SMTP verification failed:", error.code || "ERROR", error.message || error);
+        return res.status(503).json({
+            success: false,
+            configured: true,
+            connected: false,
+            message: "SMTP authentication failed. Check the deployment environment variables."
+        });
+    }
 });
 
 app.get("/api/admin/payment-requests", requireAdmin, (req, res) => {
