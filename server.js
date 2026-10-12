@@ -2,6 +2,8 @@
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,18 +70,22 @@ let users = [
     {
         id: 1,
         username: "user",
+        email: "test@example.com",
         passwordHash: hashPassword("password123"),
         role: "user",
         subscriptionEnd: "2027-10-11",
-        subscriptionPlan: "platinum"
+        subscriptionPlan: "platinum",
+        resetCode: null
     },
     {
         id: 2,
         username: "admin",
+        email: "admin@example.com",
         passwordHash: hashPassword("admin123"),
         role: "admin",
         subscriptionEnd: "N/A",
-        subscriptionPlan: null
+        subscriptionPlan: null,
+        resetCode: null
     }
 ];
 
@@ -87,11 +93,62 @@ const sessions = new Map();
 const payments = new Map();
 const manualPaymentRequests = new Map();
 
+function normalizeEmail(value = "") {
+    return String(value).trim().toLowerCase();
+}
+
+function isValidEmail(value = "") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+}
+
+function generateResetCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+const SMTP_EMAIL = (process.env.SMTP_EMAIL || "").trim();
+const SMTP_APP_PASSWORD = (process.env.SMTP_APP_PASSWORD || "").replace(/\s/g, "");
+const smtpConfigured = Boolean(SMTP_EMAIL && SMTP_APP_PASSWORD);
+
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: SMTP_EMAIL,
+        pass: SMTP_APP_PASSWORD
+    }
+});
+
+async function sendUserEmail(user, subject, htmlBody) {
+    if (!user || !user.email || !isValidEmail(user.email)) {
+        console.error("Email not sent: the user account has no valid email address.");
+        return false;
+    }
+
+    if (!smtpConfigured) {
+        console.error("Email not sent: add SMTP_EMAIL and SMTP_APP_PASSWORD to .env, then restart the server.");
+        return false;
+    }
+
+    try {
+        await transporter.sendMail({
+            from: SMTP_EMAIL,
+            to: user.email,
+            subject,
+            html: htmlBody
+        });
+
+        return true;
+    } catch (error) {
+        console.error(`Email send failed for ${user.email}:`, error.message || error);
+        return false;
+    }
+}
+
 // Public user data never includes password hashes.
 function publicUser(user) {
     return {
         id: user.id,
         username: user.username,
+        email: user.email || null,
         role: user.role,
         subscriptionEnd: user.subscriptionEnd,
         subscriptionPlan: user.subscriptionPlan || null
@@ -258,18 +315,21 @@ app.post("/api/login", (req, res) => {
     if (!username || !password) {
         return res.status(400).json({
             success: false,
-            message: "Username and password are required."
+            message: "Username/email and password are required."
         });
     }
 
-    const user = users.find(
-        item => item.username.toLowerCase() === username.toLowerCase()
-    );
+    const normalizedIdentifier = normalizeEmail(username);
+    const user = users.find(item => {
+        const matchesUsername = item.username.toLowerCase() === username.toLowerCase();
+        const matchesEmail = item.email && normalizeEmail(item.email) === normalizedIdentifier;
+        return matchesUsername || matchesEmail;
+    });
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
         return res.status(401).json({
             success: false,
-            message: "Invalid username or password."
+            message: "Invalid username/email or password."
         });
     }
 
@@ -289,6 +349,11 @@ app.post("/api/register", (req, res) => {
             ? req.body.username.trim()
             : "";
 
+    const email =
+        typeof req.body?.email === "string"
+            ? normalizeEmail(req.body.email)
+            : "";
+
     const password =
         typeof req.body?.password === "string"
             ? req.body.password
@@ -302,6 +367,13 @@ app.post("/api/register", (req, res) => {
         });
     }
 
+    if (!isValidEmail(email)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid email address is required to create an account."
+        });
+    }
+
     if (password.length < 8 || password.length > 128) {
         return res.status(400).json({
             success: false,
@@ -309,14 +381,25 @@ app.post("/api/register", (req, res) => {
         });
     }
 
-    const alreadyExists = users.some(
+    const usernameExists = users.some(
         user => user.username.toLowerCase() === username.toLowerCase()
     );
 
-    if (alreadyExists) {
+    const emailExists = users.some(
+        user => user.email && normalizeEmail(user.email) === email
+    );
+
+    if (usernameExists) {
         return res.status(409).json({
             success: false,
             message: "Username already taken."
+        });
+    }
+
+    if (emailExists) {
+        return res.status(409).json({
+            success: false,
+            message: "An account with this email already exists."
         });
     }
 
@@ -327,15 +410,134 @@ app.post("/api/register", (req, res) => {
     users.push({
         id,
         username,
+        email,
         passwordHash: hashPassword(password),
         role: "user",
         subscriptionEnd: "Inactive",
-        subscriptionPlan: null
+        subscriptionPlan: null,
+        resetCode: null
     });
 
     res.status(201).json({
         success: true,
         message: "Account created successfully. Please log in."
+    });
+});
+
+app.post("/api/forgot-password", async (req, res) => {
+    const email =
+        typeof req.body?.email === "string"
+            ? normalizeEmail(req.body.email)
+            : "";
+
+    if (!isValidEmail(email)) {
+        return res.status(400).json({
+            success: false,
+            message: "Please enter a valid email address."
+        });
+    }
+
+    const user = users.find(item => item.email && normalizeEmail(item.email) === email);
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: "No account was found for this email."
+        });
+    }
+
+    const otp = generateResetCode();
+    user.resetCode = otp;
+
+    try {
+        await transporter.sendMail({
+            from: SMTP_EMAIL,
+            to: email,
+            subject: "Cloudline Password Reset OTP",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc;">
+                    <h2 style="margin: 0 0 16px; color: #0f172a;">Password Reset Request</h2>
+                    <p style="margin: 0 0 12px; color: #475569;">Use the OTP below to reset your password.</p>
+                    <div style="font-size: 32px; font-weight: 700; letter-spacing: 6px; padding: 18px 20px; background: #ffffff; border: 1px solid #dbeafe; border-radius: 10px; text-align: center; color: #1769e0;">${otp}</div>
+                    <p style="margin-top: 16px; color: #475569;">This OTP is valid for 10 minutes.</p>
+                </div>
+            `
+        });
+
+        return res.json({
+            success: true,
+            message: "An OTP has been sent to your email.",
+            otp
+        });
+    } catch (error) {
+        user.resetCode = null;
+        console.error("Forgot password email error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to send OTP. Please try again later."
+        });
+    }
+});
+
+app.post("/api/reset-password", (req, res) => {
+    const email =
+        typeof req.body?.email === "string"
+            ? normalizeEmail(req.body.email)
+            : "";
+
+    const otp =
+        typeof req.body?.otp === "string"
+            ? req.body.otp.trim()
+            : "";
+
+    const newPassword =
+        typeof req.body?.newPassword === "string"
+            ? req.body.newPassword
+            : "";
+
+    if (!isValidEmail(email) || !/^\d{6}$/.test(otp)) {
+        return res.status(400).json({
+            success: false,
+            message: "A valid email and 6-digit OTP are required."
+        });
+    }
+
+    if (newPassword.length < 8 || newPassword.length > 128) {
+        return res.status(400).json({
+            success: false,
+            message: "New password must be between 8 and 128 characters."
+        });
+    }
+
+    const user = users.find(item => item.email && normalizeEmail(item.email) === email);
+
+    if (!user) {
+        return res.status(404).json({
+            success: false,
+            message: "User not found."
+        });
+    }
+
+    if (!user.resetCode || user.resetCode !== otp) {
+        return res.status(400).json({
+            success: false,
+            message: "OTP is invalid or expired."
+        });
+    }
+
+    if (verifyPassword(newPassword, user.passwordHash)) {
+        return res.status(400).json({
+            success: false,
+            message: "Choose a new password different from your current one."
+        });
+    }
+
+    user.passwordHash = hashPassword(newPassword);
+    user.resetCode = null;
+
+    res.json({
+        success: true,
+        message: "Password reset successfully. You can now log in with your new password."
     });
 });
 
@@ -882,6 +1084,19 @@ function submitManualPaymentRequest(req, res, methodOverride = "bkash") {
 
     manualPaymentRequests.set(paymentRequest.id, paymentRequest);
 
+    sendUserEmail(
+        req.user,
+        "Payment request submitted and pending review",
+        `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc;">
+                <h2 style="margin: 0 0 12px; color: #0f172a;">Payment request received</h2>
+                <p style="margin: 0 0 12px; color: #475569;">Hi ${req.user.username}, your payment request for <strong>${plan.name}</strong> is pending admin review.</p>
+                <p style="margin: 0 0 12px; color: #475569;">We will notify you once the admin approves or rejects it.</p>
+                <p style="margin: 0; color: #475569;">Amount: <strong>${plan.amount} ${PLAN_CURRENCY}</strong></p>
+            </div>
+        `
+    ).catch(() => {});
+
     return res.status(201).json({
         success: true,
         message: "Payment request submitted. Your subscription will activate after admin approval.",
@@ -1037,6 +1252,18 @@ app.post("/api/admin/payment-requests/:id/approve", requireAdmin, (req, res) => 
         }
     }
 
+    sendUserEmail(
+        user,
+        "Your payment request was approved",
+        `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #dcfce7; border-radius: 12px; background: #f0fdf4;">
+                <h2 style="margin: 0 0 12px; color: #166534;">Subscription approved</h2>
+                <p style="margin: 0 0 12px; color: #166534;">Hi ${user.username}, your payment request for <strong>${paymentRequest.planName}</strong> has been approved.</p>
+                <p style="margin: 0; color: #166534;">Your subscription has been renewed for 1 year.</p>
+            </div>
+        `
+    ).catch(() => {});
+
     res.json({
         success: true,
         message: "Payment approved and subscription activated.",
@@ -1065,6 +1292,20 @@ app.post("/api/admin/payment-requests/:id/reject", requireAdmin, (req, res) => {
     paymentRequest.decidedAt = new Date().toISOString();
     paymentRequest.decidedBy = req.user.username;
 
+    const user = findUserById(paymentRequest.userId);
+    if (user) {
+        sendUserEmail(
+            user,
+            "Your payment request was rejected",
+            `
+                <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #fee2e2; border-radius: 12px; background: #fff1f2;">
+                    <h2 style="margin: 0 0 12px; color: #991b1b;">Payment request rejected</h2>
+                    <p style="margin: 0; color: #7f1d1d;">Hi ${user.username}, your payment request for <strong>${paymentRequest.planName}</strong> was rejected by the admin. Please contact support or submit valid payment details.</p>
+                </div>
+            `
+        ).catch(() => {});
+    }
+
     res.json({
         success: true,
         message: "Payment request rejected."
@@ -1091,6 +1332,17 @@ app.post("/api/admin/extend", requireAdmin, (req, res) => {
 
     startDate.setUTCFullYear(startDate.getUTCFullYear() + 1);
     user.subscriptionEnd = startDate.toISOString().slice(0, 10);
+
+    sendUserEmail(
+        user,
+        "Your subscription was extended by admin",
+        `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #dbeafe; border-radius: 12px; background: #eff6ff;">
+                <h2 style="margin: 0 0 12px; color: #1d4ed8;">Subscription extended</h2>
+                <p style="margin: 0; color: #1e3a8a;">Hi ${user.username}, your subscription has been extended by an admin. Your new expiry is <strong>${user.subscriptionEnd}</strong>.</p>
+            </div>
+        `
+    ).catch(() => {});
 
     res.json({
         success: true,
@@ -1121,6 +1373,17 @@ app.post("/api/admin/reduce", requireAdmin, (req, res) => {
     currentEnd.setUTCFullYear(currentEnd.getUTCFullYear() - 1);
     user.subscriptionEnd = currentEnd.toISOString().slice(0, 10);
 
+    sendUserEmail(
+        user,
+        "Your subscription was reduced by admin",
+        `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #fef3c7; border-radius: 12px; background: #fffbeb;">
+                <h2 style="margin: 0 0 12px; color: #92400e;">Subscription updated</h2>
+                <p style="margin: 0; color: #78350f;">Hi ${user.username}, your subscription has been reduced by one year by the admin. Your updated expiry is <strong>${user.subscriptionEnd}</strong>.</p>
+            </div>
+        `
+    ).catch(() => {});
+
     res.json({
         success: true,
         message: "Subscription reduced by one year.",
@@ -1139,6 +1402,17 @@ app.post("/api/admin/cancel", requireAdmin, (req, res) => {
     }
 
     user.subscriptionEnd = "Cancelled";
+
+    sendUserEmail(
+        user,
+        "Your subscription was cancelled",
+        `
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #fee2e2; border-radius: 12px; background: #fff1f2;">
+                <h2 style="margin: 0 0 12px; color: #9f1239;">Subscription cancelled</h2>
+                <p style="margin: 0; color: #881337;">Hi ${user.username}, your subscription has been cancelled by the admin. Please contact support if you want to reactivate it.</p>
+            </div>
+        `
+    ).catch(() => {});
 
     res.json({
         success: true,
@@ -1225,4 +1499,15 @@ app.listen(PORT, () => {
     console.log("Admin: admin / admin123");
     console.log("Plan price: ৳2,000.00 BDT");
     console.log("Manual bKash payments: configured");
+
+    if (!smtpConfigured) {
+        console.error("SMTP is not configured. Add SMTP_EMAIL and SMTP_APP_PASSWORD to .env.");
+        return;
+    }
+
+    transporter.verify()
+        .then(() => console.log("SMTP connection verified; email notifications are ready."))
+        .catch(error => {
+            console.error("SMTP verification failed:", error.code || "ERROR", error.message || error);
+        });
 });

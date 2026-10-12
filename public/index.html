@@ -165,7 +165,19 @@
                         minlength="3"
                         maxlength="30"
                         autocomplete="username"
-                        placeholder="Enter username"
+                        placeholder="Enter username or email"
+                        class="mt-2 w-full rounded-xl border border-[#cbd8e7] px-4 py-3 font-normal"
+                    >
+                </label>
+
+                <label id="email-field" class="hidden block text-sm font-bold" for="email">
+                    Email
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autocomplete="email"
+                        placeholder="Enter email address"
                         class="mt-2 w-full rounded-xl border border-[#cbd8e7] px-4 py-3 font-normal"
                     >
                 </label>
@@ -195,6 +207,14 @@
                     Sign In
                 </button>
 
+                <button
+                    id="forgot-password-btn"
+                    type="button"
+                    class="w-full text-center text-sm font-semibold text-blue-600 transition hover:text-blue-800"
+                >
+                    Forgot Password?
+                </button>
+
                 <p id="loading-message" class="hidden text-center text-sm text-gray-500">
                     Please wait...
                 </p>
@@ -219,6 +239,8 @@
 
     const form = document.getElementById("auth-form");
     const usernameInput = document.getElementById("username");
+    const emailInput = document.getElementById("email");
+    const emailField = document.getElementById("email-field");
     const passwordInput = document.getElementById("password");
     const submitButton = document.getElementById("submit-btn");
     const formTitle = document.getElementById("form-title");
@@ -227,6 +249,7 @@
     const loadingMessage = document.getElementById("loading-message");
     const loginTab = document.getElementById("tab-login");
     const registerTab = document.getElementById("tab-register");
+    const forgotPasswordBtn = document.getElementById("forgot-password-btn");
 
     let isLogin = true;
 
@@ -262,9 +285,16 @@
             : "Create your account";
 
         formDescription.textContent = isLogin
-            ? "Enter your username and password to access your dashboard."
+            ? "Enter your username or email and password to access your dashboard."
             : "Create an account to get started with the demo plan.";
 
+        usernameInput.placeholder = isLogin
+            ? "Enter username or email"
+            : "Enter username";
+
+        emailField.classList.toggle("hidden", isLogin);
+        emailInput.required = !isLogin;
+        emailInput.value = "";
         passwordInput.autocomplete = isLogin
             ? "current-password"
             : "new-password";
@@ -280,23 +310,190 @@
         submitButton.textContent = isLogin ? "Sign In" : "Create Account";
     }
 
+    async function forgotPasswordFlow() {
+        if (!window.Swal) {
+            showError("SweetAlert2 is not loaded.");
+            return;
+        }
+
+        const emailResult = await Swal.fire({
+            title: "Forgot Password",
+            text: "Enter your email address to receive the OTP.",
+            input: "email",
+            inputLabel: "Email address",
+            inputPlaceholder: "you@example.com",
+            showCancelButton: true,
+            confirmButtonText: "Send OTP",
+            confirmButtonColor: "#1769e0",
+            background: "#ffffff",
+            customClass: {
+                popup: "rounded-2xl",
+                confirmButton: "rounded-xl",
+                cancelButton: "rounded-xl"
+            },
+            preConfirm: (value) => {
+                const email = (value || "").trim();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    Swal.showValidationMessage("Please enter a valid email address.");
+                    return false;
+                }
+                return email;
+            }
+        });
+
+        if (!emailResult.isConfirmed || !emailResult.value) {
+            return;
+        }
+
+        try {
+            const forgotResponse = await fetch("/api/forgot-password", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ email: emailResult.value })
+            });
+
+            const forgotData = await forgotResponse.json().catch(() => ({}));
+
+            if (!forgotResponse.ok || !forgotData.success) {
+                throw new Error(forgotData.message || "Unable to send OTP.");
+            }
+
+            const otpResult = await Swal.fire({
+                title: "Verify OTP",
+                html: `We sent a 6-digit verification code to <strong>${emailResult.value}</strong>.<br><br>Use the code below to reset your password.`,
+                input: "text",
+                inputLabel: "6-Digit OTP",
+                inputPlaceholder: "123456",
+                showCancelButton: true,
+                confirmButtonText: "Continue",
+                confirmButtonColor: "#1769e0",
+                background: "#ffffff",
+                customClass: {
+                    popup: "rounded-2xl",
+                    confirmButton: "rounded-xl",
+                    cancelButton: "rounded-xl"
+                },
+                preConfirm: (value) => {
+                    const otp = (value || "").trim();
+                    if (!/^\d{6}$/.test(otp)) {
+                        Swal.showValidationMessage("Please enter the 6-digit OTP sent to your email.");
+                        return false;
+                    }
+                    return otp;
+                }
+            });
+
+            if (!otpResult.isConfirmed || !otpResult.value) {
+                return;
+            }
+
+            const passwordResult = await Swal.fire({
+                title: "Set New Password",
+                input: "password",
+                inputLabel: "New Password",
+                inputPlaceholder: "Minimum 8 characters",
+                showCancelButton: true,
+                confirmButtonText: "Reset Password",
+                confirmButtonColor: "#1769e0",
+                background: "#ffffff",
+                customClass: {
+                    popup: "rounded-2xl",
+                    confirmButton: "rounded-xl",
+                    cancelButton: "rounded-xl"
+                },
+                preConfirm: (value) => {
+                    const newPassword = (value || "").trim();
+                    if (newPassword.length < 8 || newPassword.length > 128) {
+                        Swal.showValidationMessage("Password must be between 8 and 128 characters.");
+                        return false;
+                    }
+                    return newPassword;
+                }
+            });
+
+            if (!passwordResult.isConfirmed || !passwordResult.value) {
+                return;
+            }
+
+            const resetResponse = await fetch("/api/reset-password", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: emailResult.value,
+                    otp: otpResult.value,
+                    newPassword: passwordResult.value
+                })
+            });
+
+            const resetData = await resetResponse.json().catch(() => ({}));
+
+            if (!resetResponse.ok || !resetData.success) {
+                throw new Error(resetData.message || "Password reset failed.");
+            }
+
+            await Swal.fire({
+                title: "Success",
+                text: resetData.message,
+                icon: "success",
+                confirmButtonColor: "#1769e0",
+                background: "#ffffff",
+                customClass: {
+                    popup: "rounded-2xl",
+                    confirmButton: "rounded-xl"
+                }
+            });
+
+            passwordInput.value = "";
+            usernameInput.value = "";
+            switchMode(true);
+            usernameInput.focus();
+        } catch (error) {
+            console.error("Forgot password flow failed:", error);
+            await Swal.fire({
+                title: "Error",
+                text: error.message || "Something went wrong. Please try again.",
+                icon: "error",
+                confirmButtonColor: "#1769e0",
+                background: "#ffffff",
+                customClass: {
+                    popup: "rounded-2xl",
+                    confirmButton: "rounded-xl"
+                }
+            });
+            showError(error.message || "Something went wrong. Please try again.");
+        }
+    }
+
     loginTab.addEventListener("click", () => switchMode(true));
     registerTab.addEventListener("click", () => switchMode(false));
+    forgotPasswordBtn.addEventListener("click", forgotPasswordFlow);
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         clearError();
 
         const username = usernameInput.value.trim();
+        const email = emailInput.value.trim();
         const password = passwordInput.value;
 
         if (!username || !password) {
-            showError("Please enter both username and password.");
+            showError("Please enter both username/email and password.");
             return;
         }
 
         if (!isLogin && !/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
             showError("Username must be 3-30 characters using letters, numbers or underscores.");
+            return;
+        }
+
+        if (!isLogin && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showError("A valid email address is required to create an account.");
             return;
         }
 
@@ -309,6 +506,9 @@
 
         try {
             const endpoint = isLogin ? "/api/login" : "/api/register";
+            const payload = isLogin
+                ? { username, password }
+                : { username, email, password };
 
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -316,7 +516,7 @@
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify(payload)
             });
 
             const data = await response.json().catch(() => ({}));
@@ -339,6 +539,7 @@
                 }
 
                 passwordInput.value = "";
+                emailInput.value = "";
                 switchMode(true);
                 usernameInput.value = username;
                 passwordInput.focus();
